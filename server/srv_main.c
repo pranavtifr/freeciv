@@ -2419,7 +2419,12 @@ void player_nation_defaults(struct player *pplayer, struct nation_type *pnation,
   pplayer->style = style_of_nation(pnation);
 
   if (set_name) {
-    server_player_set_name(pplayer, pick_random_player_name(pnation));
+    if (is_ai(pplayer)) {
+      server_player_set_name(pplayer, pick_random_player_name(pnation));
+    } else {
+      /* FIXME: in Web client, connection username == player name.*/
+      server_player_set_name(pplayer, pplayer->username);
+    }
   }
 
   if ((pleader = nation_leader_by_name(pnation, player_name(pplayer)))) {
@@ -3243,6 +3248,15 @@ static void srv_ready(void)
         map_show_all(pplayer);
       } players_iterate_end;
     }
+
+    if (is_longturn()) {
+      players_iterate(pplayer) {
+        if (is_ai(pplayer)) {
+          set_as_human(pplayer);
+	  server_player_set_name(pplayer, "New Available Player ");
+	}
+      } players_iterate_end;	    
+    }
   }
 
   if (game.scenario.is_scenario && game.scenario.players) {
@@ -3607,4 +3621,12 @@ static int mapimg_server_plrcolor_count(void)
 static struct rgbcolor *mapimg_server_plrcolor_get(int i)
 {
   return playercolor_get(i);
+}
+
+/**************************************************************************
+ Is this a LongTurn game? 
+**************************************************************************/
+bool is_longturn(void)
+{
+  return (fc_strcasecmp(game.server.meta_info.type, "longturn") == 0);
 }

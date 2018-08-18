@@ -728,7 +728,13 @@ PACKET_CITY_INFO = 31; sc, lsend, is-game-info, force, cancel(PACKET_CITY_SHORT_
 
   WORKLIST worklist;
 
+  STRING can_build_unit[MAX_LEN_MSG];
+  STRING can_build_improvement[MAX_LEN_MSG];
   BV_IMPRS improvements;
+
+  STRING food_output[MAX_LEN_MSG];
+  STRING shield_output[MAX_LEN_MSG];
+  STRING trade_output[MAX_LEN_MSG];
   BV_CITY_OPTIONS city_options;
   ESTRING name[MAX_LEN_CITYNAME];
 end
@@ -2314,4 +2320,28 @@ PACKET_WEB_RULESET_UNIT_ADDITION = 258; sc, lsend
   UNIT_TYPE id; key
 
   BV_ACTIONS utype_actions;
+end
+
+# used for showing GOTO path in web client.
+PACKET_GOTO_PATH_REQ = 287; cs, dsend
+  UNIT unit_id;
+  TILE goal;
+end
+
+PACKET_GOTO_PATH = 288; sc, dsend
+  UNIT unit_id;
+  UINT16 length;
+  DIRECTION dir[MAX_LEN_ROUTE:length];
+  TILE dest;
+  UINT32 turns;
+end
+
+PACKET_INFO_TEXT_REQ = 289; cs, dsend
+  TILE loc;
+  UNIT visible_unit;
+  UNIT focus_unit;
+end
+
+PACKET_INFO_TEXT_MESSAGE = 290; sc, dsend
+  STRING message[MAX_LEN_MSG];
 end

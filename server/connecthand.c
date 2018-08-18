@@ -50,6 +50,11 @@
 #include "stdinhand.h"
 #include "voting.h"
 
+#include "astring.h"
+#include "research.h"
+#include "techtools.h"
+#include "rand.h"
+
 #include "connecthand.h"
 
 
@@ -100,6 +105,36 @@ static void restore_access_level(struct connection *pconn)
   }
 
   conn_set_access(pconn, level, FALSE);
+}
+
+/************************************************************************//**
+  Give techs for the late joiners in freeciv-web longturn game.
+****************************************************************************/
+static void do_longturn_tech_latejoiner_effect(struct player *pplayer)
+{
+  struct research *presearch;
+  
+  int mod = 35;
+  int num_players;
+
+  
+  presearch = research_get(pplayer);
+  advance_index_iterate(A_FIRST, ptech) {
+    if (presearch != NULL && TECH_KNOWN == research_invention_state(presearch, ptech)) {
+      continue;
+    }
+
+    num_players = 0;
+    players_iterate(aplayer) {
+      if (TECH_KNOWN == research_invention_state(research_get(aplayer), ptech)) {
+        if (mod <= ++num_players) {
+          found_new_tech(presearch, ptech, FALSE, TRUE);		
+	  break;
+        }
+      }
+    } players_iterate_end;
+  } advance_index_iterate_end;
+
 }
 
 /**********************************************************************//**
@@ -155,7 +190,7 @@ void establish_new_connection(struct connection *pconn)
     /* First connection
      * Replace "restarting in x seconds" meta message */
     maybe_automatic_meta_message(default_meta_message_string());
-    (void) send_server_info_to_metaserver(META_INFO);
+    (void) send_server_info_to_metaserver(META_FORCE);
   }
 
   /* introduce the server to the connection */
@@ -251,6 +286,23 @@ void establish_new_connection(struct connection *pconn)
     notify_conn(dest, NULL, E_CONNECTION, ftc_server,
 		_("You are logged in as '%s' connected to no player."),
                 pconn->username);
+
+    if (is_longturn()) {
+      pplayer = find_uncontrolled_player();
+      if (pplayer) {
+        /* Make it human! */
+        set_as_human(pplayer);
+        pplayer->economic.gold += game.info.turn * 10; if (pplayer->economic.gold > 700) pplayer->economic.gold = 700;
+        pplayer->economic.science = 60;
+        pplayer->economic.tax = 40;
+        connection_attach(pconn, pplayer, FALSE);
+        do_longturn_tech_latejoiner_effect(pplayer);
+      } else {
+        notify_conn(dest, NULL, E_CONNECTION, ftc_server,
+           _("Unable to join LongTurn game. The game is probably full."));
+      }
+    }
+
   } else {
     notify_conn(dest, NULL, E_CONNECTION, ftc_server,
 		_("You are logged in as '%s' connected to %s."),
@@ -557,8 +609,15 @@ void send_conn_info_remove(struct conn_list *src, struct conn_list *dest)
 struct player *find_uncontrolled_player(void)
 {
   players_iterate(played) {
-    if (!played->is_connected && !played->was_created) {
-      return played;
+    if (!is_longturn()) {
+      if (!played->is_connected && !played->was_created) {
+        return played;
+      }
+    } else {
+      if (((!played->is_connected && !played->was_created && played->unassigned_user && played->is_alive) 
+          || (played->is_alive && played->nturns_idle > 12 )) && !player_delegation_active(played) && strlen(played->server.delegate_to) == 0) {
+        return played;
+      }
     }
   } players_iterate_end;
 
@@ -632,6 +691,9 @@ static bool connection_attach_real(struct connection *pconn,
       }
       (void) aifill(game.info.aifill);
     }
+    if (is_longturn()) {
+      server_player_set_name(pplayer, pconn->username);
+    }
 
     if (game.server.auto_ai_toggle && !is_human(pplayer)) {
       toggle_ai_player_direct(NULL, pplayer);
@@ -660,14 +722,16 @@ static bool connection_attach_real(struct connection *pconn,
   }
 
   /* We don't want the connection's username on another player. */
-  players_iterate(aplayer) {
-    if (aplayer != pplayer
-        && 0 == strncmp(aplayer->username, pconn->username, MAX_LEN_NAME)) {
-      sz_strlcpy(aplayer->username, _(ANON_USER_NAME));
-      aplayer->unassigned_user = TRUE;
-      send_player_info_c(aplayer, NULL);
-    }
-  } players_iterate_end;
+  if (!observing) {
+    players_iterate(aplayer) {
+      if (aplayer != pplayer
+          && 0 == strncmp(aplayer->username, pconn->username, MAX_LEN_NAME)) {
+        sz_strlcpy(aplayer->username, _(ANON_USER_NAME));
+        aplayer->unassigned_user = TRUE;
+        send_player_info_c(aplayer, NULL);
+      }
+    } players_iterate_end;
+  }
 
   pconn->observer = observing;
   pconn->playing = pplayer;
