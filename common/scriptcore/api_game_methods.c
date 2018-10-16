@@ -283,6 +283,17 @@ bool api_methods_player_has_wonder(lua_State *L, Player *pplayer,
 }
 
 /*****************************************************************************
+  Return player land area
+*****************************************************************************/
+int api_methods_player_land_area(lua_State *L, Player *pplayer)
+{
+  LUASCRIPT_CHECK_STATE(L, 0);
+  LUASCRIPT_CHECK_SELF(L, pplayer, 0);
+
+  return pplayer->score.landarea;
+}
+
+/*****************************************************************************
   Return player number
 *****************************************************************************/
 int api_methods_player_number(lua_State *L, Player *pplayer)
@@ -350,6 +361,17 @@ bool api_methods_player_shares_research(lua_State *L, Player *pplayer,
   LUASCRIPT_CHECK_ARG_NIL(L, aplayer, 3, Player, FALSE);
 
   return player_research_get(pplayer) == player_research_get(aplayer);
+}
+
+/*****************************************************************************
+  Return player turns idle
+*****************************************************************************/
+int api_methods_player_turns_idle(lua_State *L, Player *pplayer)
+{
+  LUASCRIPT_CHECK_STATE(L, 0);
+  LUASCRIPT_CHECK_SELF(L, pplayer, 0);
+
+  return pplayer->nturns_idle;
 }
 
 /*****************************************************************************

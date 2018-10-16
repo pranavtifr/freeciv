@@ -126,8 +126,12 @@ module Player {
     @ gold (lua_State *L, Player *self);
   bool api_methods_player_knows_tech
     @ knows_tech (lua_State *L, Player *self, Tech_Type *ptech);
+  int api_methods_player_land_area
+    @ land_area (lua_State *L, Player *self);
   bool api_methods_player_shares_research
     @ shares_research (lua_State *L, Player *self, Player *other);
+  int api_methods_player_turns_idle
+    @ turns_idle (lua_State *L, Player *self);
 }
 
 module methods_private {
