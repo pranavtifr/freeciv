@@ -108,7 +108,7 @@ enum { OVERVIEW_PAGE, MAP_PAGE, BUILDINGS_PAGE, WORKLIST_PAGE,
 };
 
 #define NUM_CITIZENS_SHOWN 30
-#define NUM_INFO_FIELDS 12      /* number of fields in city_info */
+#define NUM_INFO_FIELDS 13      /* number of fields in city_info */
 #define NUM_PAGES 6             /* the number of pages in city dialog notebook 
                                  * (+1) if you change this, you must add an
                                  * entry to misc_whichtab_label[] */
@@ -724,7 +724,8 @@ static GtkWidget *create_city_info_table(struct city_dialog *pdialog,
     N_("Corruption:"),
     N_("Waste:"),
     N_("Pollution:"),
-    N_("Plague Risk:")
+    N_("Plague Risk:"),
+    N_("Migration Score:")
   };
   static bool output_label_done;
 
@@ -1728,14 +1729,15 @@ static void city_dialog_update_information(GtkWidget **info_ebox,
                                            struct city_dialog *pdialog)
 {
   int i, illness = 0;
+  float migration = 0;
   char buf[NUM_INFO_FIELDS][512];
   struct city *pcity = pdialog->pcity;
   int granaryturns;
   GdkRGBA red = {1.0, 0, 0, 1.0};
   GdkRGBA *color;
 
-  enum { FOOD, SHIELD, TRADE, GOLD, LUXURY, SCIENCE,
-         GRANARY, GROWTH, CORRUPTION, WASTE, POLLUTION, ILLNESS
+  enum { FOOD, SHIELD, TRADE, GOLD, LUXURY, SCIENCE, GRANARY, GROWTH,
+         CORRUPTION, WASTE, POLLUTION, ILLNESS, MIGRATION
   };
 
   /* fill the buffers with the necessary info */
@@ -1785,6 +1787,10 @@ static void city_dialog_update_information(GtkWidget **info_ebox,
     fc_snprintf(buf[ILLNESS], sizeof(buf[ILLNESS]), "%4.1f",
                 (float)illness / 10.0);
   }
+
+  migration = real_city_migration_score(pcity);
+  fc_snprintf(buf[MIGRATION], sizeof(buf[MIGRATION]), "%4.2f",
+              migration);
 
   /* stick 'em in the labels */
   for (i = 0; i < NUM_INFO_FIELDS; i++) {

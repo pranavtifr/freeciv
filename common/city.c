@@ -3287,3 +3287,76 @@ void city_set_ai_data(struct city *pcity, const struct ai_type *ai,
 {
   pcity->server.ais[ai_type_number(ai)] = data;
 }
+
+/**************************************************************************
+  Computer city migration score
+**************************************************************************/
+float real_city_migration_score(struct city *pcity)
+{
+  float score = 0.0;
+  int build_shield_cost = 0;
+  bool has_wonder = FALSE;
+
+  if (!pcity) {
+    return score;
+  }
+
+  /* feeling of the citizens */
+  score = (city_size_get(pcity)
+           + 1.00 * pcity->feel[CITIZEN_HAPPY][FEELING_FINAL]
+           + 0.00 * pcity->feel[CITIZEN_CONTENT][FEELING_FINAL]
+           - 0.25 * pcity->feel[CITIZEN_UNHAPPY][FEELING_FINAL]
+           - 0.50 * pcity->feel[CITIZEN_ANGRY][FEELING_FINAL]);
+
+  /* calculate shield build cost for all buildings */
+  city_built_iterate(pcity, pimprove) {
+    build_shield_cost += impr_build_shield_cost(pimprove);
+    if (is_wonder(pimprove)) {
+      /* this city has a wonder */
+      has_wonder = TRUE;
+    }
+  } city_built_iterate_end;
+
+  /* take shield costs of all buidings into account; normalized by 1000 */
+  score *= (1 + (1 - exp(- (float) MAX(0, build_shield_cost) / 1000)) / 5);
+  /* take trade into account; normalized by 100 */
+  score *= (1 + (1 - exp(- (float) MAX(0, pcity->surplus[O_TRADE]) / 100))
+                / 5);
+  /* take luxury into account; normalized by 100 */
+  score *= (1 + (1 - exp(- (float) MAX(0, pcity->surplus[O_LUXURY]) / 100))
+                / 5);
+  /* take science into account; normalized by 100 */
+  score *= (1 + (1 - exp(- (float) MAX(0, pcity->surplus[O_SCIENCE]) / 100))
+                / 5);
+  /* Take food into account; the food surplus is clipped to values between
+   * -10..20 and normalize by 10. Thus, the factor is between 0.9 and 1.2. */
+  score *= (1 + (float) CLIP(-10, pcity->surplus[O_FOOD], 20) / 10 );
+
+  /* Reduce the score due to city illness (plague). The illness is given in
+   * tenth of percent (0..1000) and normalized by 25. Thus, this factor is
+   * between 0.6 (ill city) and 1.0 (health city). */
+  score *= (100 - (float)city_illness_calc(pcity, NULL, NULL, NULL, NULL)
+                  / 25);
+
+  if (has_wonder) {
+    /* people like wonders */
+    score *= 1.25;
+  }
+
+  if (is_capital(pcity)) {
+    /* the capital is a magnet for the citizens */
+    score *= 1.25;
+  }
+
+  /* take into account effects */
+  score *= (1.0 + get_city_bonus(pcity, EFT_MIGRATION_PCT) / 100.0);
+
+  log_debug("[M] %s score: %.3f", city_name(pcity), score);
+
+  /* set migration score for the city */
+  pcity->server.migration_score = score;
+  /* set the turn, when the score was calculated */
+  pcity->server.mgr_score_calc_turn = game.info.turn;
+
+  return score;
+}
