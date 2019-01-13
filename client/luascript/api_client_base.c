@@ -16,15 +16,54 @@
 #endif
 
 /* common */
+#include "connection.h"
 #include "featured_text.h"
+#include "unit.h"
 
 /* common/scriptcore */
 #include "luascript.h"
 
 /* client */
 #include "chatline_common.h"
+#include "client_main.h"
+#include "goto.h"
 
 #include "api_client_base.h"
+
+/*****************************************************************************
+  Load unit in transport.
+*****************************************************************************/
+void api_client_unit_load(lua_State *L, Unit *pcargo, Unit *ptransport)
+{
+  LUASCRIPT_CHECK_STATE(L);
+  LUASCRIPT_CHECK_ARG_NIL(L, pcargo, 2, Unit);
+  LUASCRIPT_CHECK_ARG_NIL(L, ptransport, 3, Unit);
+
+  dsend_packet_unit_load(&client.conn, pcargo->id, ptransport->id);
+}
+
+/*****************************************************************************
+  Move unit.
+*****************************************************************************/
+void api_client_unit_move(lua_State *L, Unit *punit, Tile *ptile)
+{
+  LUASCRIPT_CHECK_STATE(L);
+  LUASCRIPT_CHECK_ARG_NIL(L, punit, 2, Unit);
+  LUASCRIPT_CHECK_ARG_NIL(L, ptile, 3, Tile);
+
+  send_goto_tile(punit, ptile);
+}
+
+/*****************************************************************************
+  Upgrade unit.
+*****************************************************************************/
+void api_client_unit_upgrade(lua_State *L, Unit *punit)
+{
+  LUASCRIPT_CHECK_STATE(L);
+  LUASCRIPT_CHECK_ARG_NIL(L, punit, 2, Unit);
+
+  dsend_packet_unit_upgrade(&client.conn, punit->id);
+}
 
 /*****************************************************************************
   Print a message in the chat window.

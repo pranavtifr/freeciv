@@ -24,6 +24,9 @@ extern "C" {
 struct lua_State;
 
 void api_client_chat_base(lua_State *L, const char *msg);
+void api_client_unit_load(lua_State *L, Unit *pcargo, Unit *ptransport);
+void api_client_unit_move(lua_State *L, Unit *punit, Tile *ptile);
+void api_client_unit_upgrade(lua_State *L, Unit *punit);
 
 #ifdef __cplusplus
 }

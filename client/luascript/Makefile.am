@@ -7,6 +7,7 @@ AM_CPPFLAGS = \
 	-I$(top_srcdir)/utility \
 	-I$(top_srcdir)/common \
 	-I$(top_srcdir)/common/scriptcore \
+	-I$(top_srcdir)/common/aicore \
 	-I$(top_srcdir)/client \
 	$(LUA_CFLAGS) $(LUASQL_CFLAGS) $(TOLUA_CFLAGS)
 

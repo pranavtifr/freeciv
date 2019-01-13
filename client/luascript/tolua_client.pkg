@@ -45,3 +45,13 @@ function chat.msg(fmt, ...)
 end
 
 $]
+
+/* Control module. */
+module control {
+  void api_client_unit_load
+    @ unit_load (lua_State *L, Unit *pcargo, Unit *ptransport);
+  void api_client_unit_move
+    @ unit_move (lua_State *L, Unit *punit, Tile *ptile);
+  void api_client_unit_upgrade
+    @ unit_upgrade (lua_State *L, Unit *punit);
+}
