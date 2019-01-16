@@ -31,6 +31,17 @@
 #include "api_client_base.h"
 
 /*****************************************************************************
+  Airlift unit.
+*****************************************************************************/
+void api_client_unit_airlift(lua_State *L, Unit *punit, City *pcity)
+{
+  LUASCRIPT_CHECK_STATE(L);
+  LUASCRIPT_CHECK_ARG_NIL(L, punit, 2, Unit);
+  LUASCRIPT_CHECK_ARG_NIL(L, pcity, 3, City);
+
+  dsend_packet_unit_airlift(&client.conn, punit->id, pcity->id);
+}
+/*****************************************************************************
   Load unit in transport.
 *****************************************************************************/
 void api_client_unit_load(lua_State *L, Unit *pcargo, Unit *ptransport)

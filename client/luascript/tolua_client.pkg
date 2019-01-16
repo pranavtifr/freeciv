@@ -48,6 +48,8 @@ $]
 
 /* Control module. */
 module control {
+  void api_client_unit_airlift
+    @ unit_airlift (lua_State *L, Unit *punit, City *pcity);
   void api_client_unit_load
     @ unit_load (lua_State *L, Unit *pcargo, Unit *ptransport);
   void api_client_unit_move
