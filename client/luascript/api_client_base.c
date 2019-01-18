@@ -31,6 +31,16 @@
 #include "api_client_base.h"
 
 /*****************************************************************************
+  Return the player the client is connected to.
+*****************************************************************************/
+Player *api_client_player(lua_State *L)
+{
+  LUASCRIPT_CHECK_STATE(L, NULL);
+
+  return client_player();
+}
+
+/*****************************************************************************
   Airlift unit.
 *****************************************************************************/
 void api_client_unit_airlift(lua_State *L, Unit *punit, City *pcity)

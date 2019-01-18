@@ -46,6 +46,8 @@ end
 
 $]
 
+Player *api_client_player @ client_player(lua_State *L);
+
 /* Control module. */
 module control {
   void api_client_unit_airlift

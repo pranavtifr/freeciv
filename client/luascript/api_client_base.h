@@ -23,6 +23,7 @@ extern "C" {
 
 struct lua_State;
 
+Player *api_client_player(lua_State *L);
 void api_client_chat_base(lua_State *L, const char *msg);
 void api_client_unit_airlift(lua_State *L, Unit *punit, City *pcity);
 void api_client_unit_load(lua_State *L, Unit *pcargo, Unit *ptransport);
