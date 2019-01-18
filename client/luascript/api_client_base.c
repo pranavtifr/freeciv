@@ -77,6 +77,19 @@ void api_client_unit_upgrade(lua_State *L, Unit *punit)
 }
 
 /*****************************************************************************
+  Request diplomat action for unit.
+*****************************************************************************/
+void api_client_diplomat_action(lua_State *L, Unit *pdiplo, int target_id,
+                                int value, int action)
+{
+  LUASCRIPT_CHECK_STATE(L);
+  LUASCRIPT_CHECK_ARG_NIL(L, pdiplo, 2, Unit);
+
+  dsend_packet_unit_diplomat_action(&client.conn, pdiplo->id, target_id,
+                                    value, action);
+}
+
+/*****************************************************************************
   Print a message in the chat window.
 *****************************************************************************/
 void api_client_chat_base(lua_State *L, const char *msg)

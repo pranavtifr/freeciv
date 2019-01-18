@@ -28,6 +28,9 @@ void api_client_unit_airlift(lua_State *L, Unit *punit, City *pcity);
 void api_client_unit_load(lua_State *L, Unit *pcargo, Unit *ptransport);
 void api_client_unit_move(lua_State *L, Unit *punit, Tile *ptile);
 void api_client_unit_upgrade(lua_State *L, Unit *punit);
+void api_client_diplomat_action(lua_State *L, Unit *pdiplo, int target_id,
+                                int value, int action);
+
 
 #ifdef __cplusplus
 }
