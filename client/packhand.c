@@ -89,6 +89,9 @@
 #include "update_queue.h"
 #include "voteinfo.h"
 
+/* client/luascript */
+#include "script_client.h"
+
 #include "packhand.h"
 
 /* Define this macro to get additional debug output about the transport
@@ -398,6 +401,8 @@ void handle_unit_remove(int unit_id)
   struct player *powner;
   bool need_economy_report_update;
 
+  script_client_signal_emit("unit_remove", 1, API_TYPE_INT, unit_id);
+
   if (!punit) {
     log_error("Server wants us to remove unit id %d, "
               "but we don't know about this unit!",
@@ -474,6 +479,11 @@ void handle_unit_combat_info(int attacker_unit_id, int defender_unit_id,
   bool show_combat = FALSE;
   struct unit *punit0 = game_unit_by_number(attacker_unit_id);
   struct unit *punit1 = game_unit_by_number(defender_unit_id);
+
+  script_client_signal_emit("combat_info", 4, API_TYPE_INT, attacker_unit_id,
+		  API_TYPE_INT, defender_unit_id,
+		  API_TYPE_INT, attacker_hp,
+		  API_TYPE_INT, defender_hp);
 
   create_event(unit_tile(punit1), E_UNIT_LOST_ATT, ftc_client,
                _("Combat result: defending %s (%d) %d hp, attacking %s"
@@ -1783,6 +1793,8 @@ static bool handle_unit_packet_common(struct unit *packet_unit)
       units_report_dialog_update();
     }
   }
+
+  script_client_signal_emit("unit_packet", 1, API_TYPE_UNIT, punit);
 
   return ret;
 }

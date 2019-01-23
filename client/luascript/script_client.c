@@ -318,4 +318,8 @@ void script_client_signal_emit(const char *signal_name, int nargs, ...)
 static void script_client_signal_create(void)
 {
   luascript_signal_create(fcl, "new_tech", 0);
+  luascript_signal_create(fcl, "unit_packet", 1, API_TYPE_UNIT);
+  luascript_signal_create(fcl, "unit_remove", 1, API_TYPE_INT);
+  luascript_signal_create(fcl, "combat_info", 4, API_TYPE_INT, API_TYPE_INT,
+                          API_TYPE_INT, API_TYPE_INT);
 }
