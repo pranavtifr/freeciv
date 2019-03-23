@@ -68,6 +68,7 @@ tiles = { "row", "column", "tag"
   0, 17, "u.mech_inf"		; [GB]
   0, 18, "u.warriors"		; [GB]
   0, 19, "u.musketeers"		; [Alex] & [CT]
+  0, 20, "u.rabotnik"		; Anon
   1,  0, "u.nuclear"		; [Nemo] & [CS]
   1,  1, "u.phalanx"		; [GB] & [CT]
   1,  2, "u.riflemen"		; [Alex]
@@ -86,6 +87,9 @@ tiles = { "row", "column", "tag"
   1, 15, "u.galleon"		; [BB]
   1, 16, "u.partisan"		; [BB] & [CT]
   1, 17, "u.pikemen"		; [T]
+  1, 18, "u.escort_fighter"	; Anon
+  1, 19, "u.medium_bomber"	; Anon
+  1, 20, "u.ballon"		; Anon
   2,  0, "u.marines"		; [GB]
   2,  1, "u.spy"		; [EW] & [CT]
   2,  2, "u.engineers"		; [Nemo] & [CT]
@@ -104,6 +108,8 @@ tiles = { "row", "column", "tag"
   2, 15, "u.leader"		; [GB]
   2, 16, "u.barbarian_leader"	; FiftyNine
   2, 17, "u.migrants"		; Eleazar
-;  2, 19, "u.train"		; Eleazar
+  2, 18, "u.flak"		; Anon
+  2, 19, "u.train"		; Eleazar
+  2, 20, "u.missile_destroyer"	; Anon
 
 }
