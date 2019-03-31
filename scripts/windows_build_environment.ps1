@@ -1,0 +1,1 @@
+c:\tools\msys64\usr\bin\bash -c "pacman -Syu mingw-w64-x86_64-gtk3 mingw-w64-x86_64-nsis mingw-w64-x86_64-tolua mingw-w64-x86_64-meson mingw-w64-x86_64-drmingw mingw-w64-x86_64-SDL2_mixer mingw-w64-x86_64-imagemagick mingw-w64-x86_64-readline mingw-w64-x64_64-bzip2 mingw-w64-x86_64-curl mingw-w64-x86_64-icu mingw-w64-x86_64-gcc"

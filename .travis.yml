@@ -1,11 +1,15 @@
-sudo: required
-dist: trusty
-
 language: c
 
-compiler:
-  - gcc
-python:
-  - "3.3"
+os: windows
 
-script: "sudo bash ./scripts/travis-build.sh"  
+script:
+- choco install msys2
+- powershell scripts/windows_build_environment.ps1
+
+deploy:
+  provider: releases
+  api_key:
+    secure: AHXZmE+IBolxGWaPGE9g+qZ+cP3VyyIjcL1d91DNMISgRFbpLUnrYDRone0hZpyGUo6omttNMRnEJD8/m1cb0JtvffZnRH/WA+UBvFJYdHcdJgRlrQGFYIbuOJ5DiaFLjg+XwPvTGEnmSUpmg/HQwom52jpMHJvdTR8ojloDsZSmMmhv6hnm+Kzwm9/LBuEtMyr9HNHicOFnHydBDPgwuS/HVSLdte8XU/JLIZQ0IR67ecrqef61hkMcaeabSmfEmT9vXLFG4yLIN7aiFr1O3u2MOwp7+Bdd81drP3sxLpiThZDdIbkPWotScS/2oCE+S+A/LiCZz5pKRJG0QgRKuss62+z4yCJ0FNugOE8hmiqEf6sJXXTWCDkXh/NllcKRtZU7UrId4Ts9RMJA2C9lO6K65N0fDo3eSt0gmMMarB52CgfA0j3vQpODOTCRWWtIlouywuiFA+v4SAizsw/lqfM8a1PTwWaw0GyxE6qOQ9pcxTJu1C2NA+2IkurrbYI8h6n7G2+SLn9OpmKzHln//zX6aQptDY07w86K3EJit2WzNFZcCNVvvcXY8/CsWOGyHTmDCmYnyT4ABY6LKBNGbKh5mqSrrwnPDmLjykASsQlhLquaPlPFjTUHNLJjc/VKU+oy1PooZ4fLCqB0JT7rsWY6b35wcTSCboJvlooGDfo=
+  file: 'windows/installer_msys2/Output/Freeciv-3.0.91-dev-msys2-win64-gtk3.22-setup.exe'
+  on:
+    repo: longturn/freeciv
