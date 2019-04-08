@@ -1,0 +1,41 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+- master
+
+pool:
+  vmImage: 'windows-2019'
+
+steps:
+- bash: |
+    mkdir /c/tools
+    curl -OL https://github.com/zekoz/freeciv/releases/download/untagged-ef7aa394e131f0256e96/msys64.tar
+    tar xf msys64.tar -C /c/tools
+    echo "##vso[task.setvariable variable=date;isOutput=true]$(date +%F)"
+  displayName: 'Setup Msys2'
+
+- script: c:\tools\msys64\usr\bin\bash -c "PATH=/mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin:/c/Windows/System32:/c/Windows:/c/Windows/System32/Wbem:/c/Windows/System32/WindowsPowerShell/v1.0/; export PKG_CONFIG_PATH=/mingw64/lib/pkgconfig:/mingw64/share/pkgconfig; export CONFIG_SITE=/mingw64/etc/config.site; export MSYSTEM=MINGW64; ./autogen.sh --no-configure-run; cd windows/installer_msys2; make gtk3.22-installer"
+  displayName: 'Build'
+
+# GitHub Release
+# Create, edit, or delete a GitHub release.
+- task: GitHubRelease@0
+  inputs:
+    gitHubConnection: github
+    repositoryName: '$(Build.Repository.Name)' 
+    action: 'create' # Options: create, edit, delete
+    target: '$(Build.SourceVersion)' # Required when action == Create || Action == Edit
+    tagSource: 'manual' # Required when action == Create# Options: auto, manual
+    tag: 'nightly-$(date)' # Required when action == Edit || Action == Delete || TagSource == Manual
+    #title: # Optional
+    #releaseNotesSource: 'file' # Optional. Options: file, input
+    #releaseNotesFile: # Optional
+    #releaseNotes: # Optional
+    assets: 'windows/installer_msys2/Output/*' # Optional
+    #assetUploadMode: 'delete' # Optional. Options: delete, replace
+    #isDraft: false # Optional
+    #isPreRelease: false # Optional
+    #addChangeLog: true # Optional
