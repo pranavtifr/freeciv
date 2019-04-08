@@ -165,6 +165,7 @@ SOUND_DLLS := \
 	libopus-0.dll
 
 COMMON_DLLS := \
+	lua53.dll \
 	libstdc++-6.dll \
 	libcrypto-1_1${CRYPTOLIB_SUFFIX}.dll \
 	libpsl-5.dll \
@@ -202,8 +203,8 @@ COMMON_DLLS := \
 	libxml2-2.dll \
 	zlib1.dll \
 	libwinpthread-1.dll \
-	libicuuc64.dll \
-	libicudt64.dll \
+	libicuuc62.dll \
+	libicudt62.dll \
 	libsqlite3-0.dll \
 	exchndl.dll \
 	mgwhelp.dll \
@@ -264,9 +265,9 @@ install-env-sdl2: install-env-default-fcmp
 	cp -R $(addprefix $(DLLPATH_PREFIX), $(SDL2_DLLS)) install-$(WINARCH)-$(GUI)/
 
 QT_DLLS := \
-	libicuin64.dll \
-	libicuuc64.dll \
-	libicudt64.dll \
+	libicuin62.dll \
+	libicuuc62.dll \
+	libicudt62.dll \
 	libpcre16-0.dll \
 	libharfbuzz-0.dll \
 	libsqlite3-0.dll \
