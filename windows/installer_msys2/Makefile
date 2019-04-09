@@ -77,7 +77,7 @@ configure-freeciv-common:
 	# create build directory
 	mkdir -p build-$(WINARCH)-$(GUI)
 	# configure
-	cd build-$(WINARCH)-$(GUI); ../../../configure FREECIV_LABEL_FORCE="<base>-msys2" CPPFLAGS="-D_WIN32_WINNT=$(MIN_WIN_VER)" --enable-client=$(GUI) --with-followtag="windows-S3_1" --with-tinycthread --without-readline --disable-sys-lua --enable-fcdb=sqlite3 --with-sqlite3-prefix=/$(ARCHDIR) --enable-fcmp=$(FCMP) $(EXTRA_CONFIG)
+	cd build-$(WINARCH)-$(GUI); ../../../configure FREECIV_LABEL_FORCE="<base>-msys2" CPPFLAGS="-D_WIN32_WINNT=$(MIN_WIN_VER)" --enable-client=$(GUI) --with-followtag="windows-S3_1" --with-tinycthread --without-readline --disable-sys-lua --enable-json --disable-delta-protocol --enable-fcdb=sqlite3 --with-sqlite3-prefix=/$(ARCHDIR) --enable-fcmp=$(FCMP) $(EXTRA_CONFIG)
 
 configure-freeciv-ruledit:
 	# create build directory
@@ -165,7 +165,6 @@ SOUND_DLLS := \
 	libopus-0.dll
 
 COMMON_DLLS := \
-	lua53.dll \
 	libstdc++-6.dll \
 	libcrypto-1_1${CRYPTOLIB_SUFFIX}.dll \
 	libpsl-5.dll \
