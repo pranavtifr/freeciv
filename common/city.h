@@ -388,6 +388,8 @@ struct city {
 
   struct worker_task_list *task_reqs;
 
+  struct tile *rally_point;
+
   int steal; /* diplomats steal once; for spies, gets harder */
 
   union {

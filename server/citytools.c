@@ -2496,6 +2496,12 @@ void package_city(struct city *pcity, struct packet_city_info *packet,
   packet->city_image = get_city_bonus(pcity, EFT_CITY_IMAGE);
   packet->steal = pcity->steal;
 
+  if (pcity->rally_point) {
+    packet->rally_point = tile_index(pcity->rally_point);
+  } else {
+    packet->rally_point = -1;
+  }
+
   BV_CLR_ALL(packet->improvements);
   improvement_iterate(pimprove) {
     if (city_has_building(pcity, pimprove)) {

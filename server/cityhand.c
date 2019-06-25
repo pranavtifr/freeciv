@@ -516,3 +516,28 @@ void handle_city_options_req(struct player *pplayer, int city_id,
 
   send_city_info(pplayer, pcity);
 }
+
+/**********************************************************************//**
+  Handles a request to set city rally point for new units.
+**************************************************************************/
+void handle_city_rally_point(struct player *pplayer, int city_id,
+                             int tile_id)
+{
+  struct tile *ptile = index_to_tile(&(wld.map), tile_id);
+  struct city *pcity = player_city_by_number(pplayer, city_id);
+
+  if (NULL == pcity) {
+    /* Probably lost. */
+    log_verbose("handle_city_rally_point() bad city number %d.", city_id);
+    return;
+  }
+
+  /* If tile selected is city tile, remove rally point. */
+  if (ptile == city_tile(pcity)) {
+    pcity->rally_point = NULL;
+  } else {
+    pcity->rally_point = ptile;
+  }
+
+  send_city_info(pplayer, pcity);
+}

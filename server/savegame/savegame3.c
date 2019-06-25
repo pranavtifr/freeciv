@@ -4600,6 +4600,7 @@ static bool sg_load_player_city(struct loaddata *loading, struct player *plr,
   const char *kind, *name, *str;
   int id, i, repair, sp_count = 0, workers = 0, value;
   int nat_x, nat_y;
+  int rally_x, rally_y;
   citizens size;
   const char *stylename;
   int partner = 1;
@@ -4783,6 +4784,17 @@ static bool sg_load_player_city(struct loaddata *loading, struct player *plr,
     }
   }
 
+  /* Load city rally point. */
+  rally_x = secfile_lookup_int_default(loading->file, -1, "%s.rally_x",
+                                       citystr);
+  rally_y = secfile_lookup_int_default(loading->file, -1, "%s.rally_y",
+                                       citystr);
+  pcity->rally_point = native_pos_to_tile(&(wld.map), rally_x, rally_y);
+
+  pcity->last_turns_shield_surplus =
+    secfile_lookup_int_default(loading->file, 0,
+                               "%s.last_turns_shield_surplus",
+                               citystr);
   sg_failure_ret_val(loading->worked_tiles != NULL, FALSE,
                      "No worked tiles map defined.");
 
