@@ -22,6 +22,7 @@
 /* utility */
 #include "fcintl.h"
 #include "log.h"
+#include "mem.h"
 #include "rand.h"
 #include "support.h"
 
@@ -514,5 +515,46 @@ void handle_city_options_req(struct player *pplayer, int city_id,
 
   pcity->city_options = options;
 
+  send_city_info(pplayer, pcity);
+}
+
+/**********************************************************************//**
+  Handles a request to set city rally point for new units.
+**************************************************************************/
+void handle_city_rally_point(struct player *pplayer,
+                             const struct packet_city_rally_point *packet)
+{
+  int i;
+  struct city *pcity = player_city_by_number(pplayer, packet->city_id);
+
+  if (NULL == pcity) {
+    /* Probably lost. */
+    log_verbose("handle_city_rally_point() bad city number %d.",
+                packet->city_id);
+    return;
+  }
+
+  pcity->rally_point.length = packet->length;
+
+  if (packet->length == 0) {
+    pcity->rally_point.vigilant = FALSE;
+    pcity->rally_point.persistent = FALSE;
+    free(pcity->rally_point.orders);
+    pcity->rally_point.orders = NULL;
+  } else {
+    pcity->rally_point.persistent = packet->persistent;
+    pcity->rally_point.vigilant = packet->vigilant;
+  
+    pcity->rally_point.orders = fc_malloc(packet->length
+                                          * (sizeof(struct unit_order)));
+  
+    for (i = 0; i < packet->length; i++) {
+      pcity->rally_point.orders[i].action = packet->actions[i];
+      pcity->rally_point.orders[i].order = packet->orders[i];
+      pcity->rally_point.orders[i].dir = packet->dirs[i];
+      pcity->rally_point.orders[i].activity = packet->activities[i];
+      pcity->rally_point.orders[i].sub_target = packet->sub_targets[i];
+    }
+  }
   send_city_info(pplayer, pcity);
 }
