@@ -2314,50 +2314,6 @@ static bool city_build_building(struct player *pplayer, struct city *pcity)
   return TRUE;
 }
 
-static void set_unit_rally_orders(struct unit *punit, struct tile *ptile)
-{
-  int i;
-  struct pf_parameter parameter;
-  struct pf_map *pfm;
-  struct pf_path *path;
-  struct tile *new_tile;
-  struct tile *old_tile;
-
-  pft_fill_unit_parameter(&parameter, punit);
-  parameter.omniscience = FALSE;
-  pfm = pf_map_new(&parameter);
-  path = pf_map_path(pfm, ptile);
-  pf_map_destroy(pfm);
-
-  /* We skip the start position. */
-  punit->orders.length = path->length - 1;
-  punit->orders.list = fc_malloc(punit->orders.length * sizeof(struct unit_order));
-  old_tile = path->positions[0].tile;
-
-  /* If the path has n positions it takes n-1 steps. */
-  for (i = 0; i < path->length - 1; i++) {
-    new_tile = path->positions[i + 1].tile;
-
-    if (same_pos(new_tile, old_tile)) {
-      punit->orders.list[i].order = ORDER_FULL_MP;
-      punit->orders.list[i].activity = ACTIVITY_LAST;
-      punit->orders.list[i].sub_target = -1;
-      punit->orders.list[i].dir = DIR8_ORIGIN;
-      punit->orders.list[i].action = ACTION_NONE;
-    } else {
-      punit->orders.list[i].order = ORDER_ACTION_MOVE;
-      punit->orders.list[i].activity = ACTIVITY_LAST;
-      punit->orders.list[i].sub_target = -1;
-      punit->orders.list[i].dir = get_direction_for_step(&(wld.map),
-                                                         old_tile, new_tile);
-      punit->orders.list[i].action = ACTION_NONE;
-    }
-    old_tile = new_tile;
-  }
-
-  punit->has_orders = TRUE;
-}
-
 /**********************************************************************//**
   Build city units. Several units can be built in one turn if the effect
   City_Build_Slots is used.
@@ -2441,9 +2397,15 @@ static bool city_build_unit(struct player *pplayer, struct city *pcity)
       pplayer->score.units_built++;
 
       /* If city has a rally point set, give the unit a move order. */
-      if (pcity->rally_point) {
-        set_unit_rally_orders(punit, pcity->rally_point);
+      if (pcity->rally_point.length) {
+        punit->orders.length = pcity->rally_point.length;
+        punit->orders.vigilant = pcity->rally_point.vigilant;
+        punit->orders.list = fc_malloc(pcity->rally_point.length
+                                       * sizeof(struct unit_order));
+	memcpy(punit->orders.list, pcity->rally_point.orders,
+               pcity->rally_point.length * sizeof(struct unit_order));
       }
+
       /* After we created the unit remove the citizen. This will also
        * rearrange the worker to take into account the extra resources
        * (food) needed. */
@@ -2486,6 +2448,14 @@ static bool city_build_unit(struct player *pplayer, struct city *pcity)
          * worklist */
         worklist_remove(pwl, 0);
       }
+    }
+
+    if (pcity->rally_point.length && !pcity->rally_point.persistent) {
+      pcity->rally_point.length = 0;
+      pcity->rally_point.persistent = FALSE;
+      pcity->rally_point.vigilant = FALSE;
+      free(pcity->rally_point.orders);
+      pcity->rally_point.orders = NULL;
     }
 
     if (city_exist(saved_city_id)) {

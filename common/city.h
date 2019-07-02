@@ -26,6 +26,7 @@ extern "C" {
 #include "name_translation.h"
 #include "improvement.h"
 #include "traderoutes.h"
+#include "unit.h"
 #include "unitlist.h"
 #include "vision.h"
 #include "workertask.h"
@@ -388,9 +389,16 @@ struct city {
 
   struct worker_task_list *task_reqs;
 
-  struct tile *rally_point;
-
   int steal; /* diplomats steal once; for spies, gets harder */
+
+  struct {
+    int length;
+    /* If true, rally point is active until owner cancels or loses city. */
+    bool persistent;
+    /* Orders should be cleared if an enemy is met. */
+    bool vigilant;
+    struct unit_order *orders;
+  } rally_point;
 
   union {
     struct {
