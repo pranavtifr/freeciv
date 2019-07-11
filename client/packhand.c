@@ -5234,3 +5234,19 @@ void handle_play_music(const char *tag)
 {
   play_single_track(tag);
 }
+
+
+/************************************************************************//**
+  Ignore info text.
+****************************************************************************/
+void handle_info_text_message(const char *message)
+{
+}
+
+/************************************************************************//**
+  Ignore goto path.
+****************************************************************************/
+void handle_goto_path(int unit_id, int length, const enum direction8 *dir, int dest, int turns)
+{
+}
+
