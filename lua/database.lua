@@ -198,7 +198,7 @@ function user_take(conn, player, observer)
   local query = string.format([[
       SELECT delegation FROM auth_user u, game_joined j, player_player p
       WHERE u.id = j.user_id AND p.id = j.user_id
-      AND u.username = '%s' AND game_id = '%s']], dbh:escape(who),
+      AND LOWER(u.username) = LOWER('%s') AND game_id = '%s']], dbh:escape(who),
       dbh:escape(fcdb.serverid()))
   local res = assert(dbh:execute(query))
 
@@ -206,6 +206,7 @@ function user_take(conn, player, observer)
   if not row then
     -- No match
     res:close()
+    log.error("Rejecting /take by %s on %s: delegation not set", taker, who)
     return false
   end
 
@@ -215,5 +216,6 @@ function user_take(conn, player, observer)
     return true
   end
 
+  log.error("Rejecting /take by %s on %s: not delegated to this user", taker, who)
   return false
 end
