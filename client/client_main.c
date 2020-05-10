@@ -328,6 +328,8 @@ int client_main(int argc, char *argv[])
   int fatal_assertions = -1;
   int aii;
 
+  pdump_file = fopen("p.dump", "w");
+
   /* Load win32 post-crash debugger */
 #ifdef WIN32_NATIVE
 # ifndef FREECIV_NDEBUG

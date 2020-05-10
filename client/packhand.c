@@ -1231,6 +1231,10 @@ void handle_start_phase(int phase)
     return;
   }
 
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  client.conn.client.game_start_time_ms = 1000 * tv.tv_sec + tv.tv_usec / 1000;
+
   if (phase < 0
       || (game.info.phase_mode == PMT_PLAYERS_ALTERNATE
           && phase >= player_count())
