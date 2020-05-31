@@ -188,8 +188,12 @@ function user_take(conn, player, observer)
     error("Missing database connection...")
   end
 
-  local who = player.name
   local taker = auth.get_username(conn)
+  if not player then
+    return taker == "cambot"
+  end
+
+  local who = player.name
 
   if who == taker then
     return true
@@ -197,7 +201,7 @@ function user_take(conn, player, observer)
 
   local query = string.format([[
       SELECT delegation FROM auth_user u, game_joined j, player_player p
-      WHERE u.id = j.user_id AND p.id = j.user_id
+      WHERE u.id = j.user_id AND p.user_id = j.user_id
       AND LOWER(u.username) = LOWER('%s') AND game_id = '%s']], dbh:escape(who),
       dbh:escape(fcdb.serverid()))
   local res = assert(dbh:execute(query))
