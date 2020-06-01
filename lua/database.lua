@@ -195,7 +195,7 @@ function user_take(conn, player, observer)
 
   local who = player.name
 
-  if who == taker then
+  if string.lower(who) == string.lower(taker) then
     return true
   end
 
