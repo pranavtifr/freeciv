@@ -1213,7 +1213,7 @@ void bounce_unit(struct unit *punit, bool verbose)
 
   if (count > 0) {
     struct tile *ptile = tiles[fc_rand(count)];
-    struct unit_bounce_data* cargolist;
+    struct unit_bounce_data* cargolist = NULL;
 
     if (cargo_count > 0) {
       struct unit_bounce_data* pdata;
