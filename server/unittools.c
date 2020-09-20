@@ -2557,8 +2557,6 @@ static void do_nuke_tile_extras(struct player *pplayer, struct tile *ptile)
   struct city *pcity = tile_city(ptile);
 
   extra_type_iterate(extra) {
-    const char *name = rule_name_get(&extra->name);
-    
     /* Only destroy man-made infra -- leave the garbage and natural features */
     if (extra->category != ECAT_INFRA || ! tile_has_extra(ptile, extra))
       continue;
