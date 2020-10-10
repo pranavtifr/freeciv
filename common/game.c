@@ -455,6 +455,9 @@ static void game_defaults(void)
     game.server.timeoutintinc     = GAME_DEFAULT_TIMEOUTINTINC;
     game.server.turnblock         = GAME_DEFAULT_TURNBLOCK;
     game.server.unitwaittime      = GAME_DEFAULT_UNITWAITTIME;
+    game.server.unitwaittime_range    = GAME_DEFAULT_UNITWAITTIME_RANGE;
+    game.server.unitwaittime_allied   = GAME_DEFAULT_UNITWAITTIME_ALLIED;
+    game.server.playerwaittime        = GAME_DEFAULT_PLAYERWAITTIME;
     game.server.plr_colors        = NULL;
   } else {
     /* Client side takes care of itself in client_main() */

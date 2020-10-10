@@ -2715,6 +2715,48 @@ static struct setting settings[] = {
           NULL, unitwaittime_callback, NULL, GAME_MIN_UNITWAITTIME,
           GAME_MAX_UNITWAITTIME, GAME_DEFAULT_UNITWAITTIME)
 
+  GEN_INT("unitwaittime_range", game.server.unitwaittime_range,
+          SSET_RULES_FLEXIBLE, SSET_INTERNAL, SSET_VITAL, SSET_TO_CLIENT,
+          N_("Distance over which 'unitwaittime' applies when moving"),
+          /* TRANS: The string between single quotes is a setting name and
+           * should not be translated. */
+          N_("This setting gives the range over which units affect other "
+             "units for 'unitwaittime' restrictions. "
+             "If set to -1, unit moves only affect further moves of the "
+             "same unit (default). "
+             "If >= 0, wait times of units within this range are checked "
+             "when a unit tries to move. (0 = same tile, 1 = neighboring "
+             "tiles, etc.). "),
+          NULL, NULL, NULL, GAME_MIN_UNITWAITTIME_RANGE,
+          GAME_MAX_UNITWAITTIME_RANGE, GAME_DEFAULT_UNITWAITTIME_RANGE)
+
+  GEN_BOOL("unitwaittime_allied", game.server.unitwaittime_allied,
+          SSET_RULES_FLEXIBLE, SSET_INTERNAL, SSET_VITAL, SSET_TO_CLIENT,
+          N_("Allied units also count for 'unitwaittime_range' restrictions"),
+          /* TRANS: The string between single quotes is a setting name and
+           * should not be translated. */
+          N_("If set, allied units within 'unitwaittime_range' also "
+             "affect units for 'unitwaittime' restrictions. If unset, "
+             "only units of the same player are checked. "
+             "This has no effect if 'unitwaittime_range' is set to -1."),
+          NULL, NULL, GAME_DEFAULT_UNITWAITTIME_ALLIED)
+
+  GEN_INT("playerwaittime", game.server.playerwaittime,
+          SSET_RULES_FLEXIBLE, SSET_INTERNAL, SSET_VITAL, SSET_TO_CLIENT,
+          N_("Minimum time between player actions over turn change"),
+          /* TRANS: The string between single quotes is a setting name and
+           * should not be translated. */
+          N_("Similarly to 'unitwaittime', this setting gives the minimum time "
+             "between ANY unit moves made by a player over a turn change. "
+             "For example, if this setting is set to 20 and a player moves "
+             "a unit 5 seconds before the turn change, that player will not "
+             "be able to move ANY units (neither the same unit nor others) "
+             "in the next turn for 15 seconds. This value should be limited "
+             "to a maximum value proportional to 'timeout', but this is not "
+             "enforced."),
+          NULL, NULL, NULL, GAME_MIN_PLAYERWAITTIME,
+          GAME_MAX_PLAYERWAITTIME, GAME_DEFAULT_PLAYERWAITTIME)
+
   GEN_BITWISE("unitwaittime_style", game.server.unitwaittime_style,
               SSET_RULES_FLEXIBLE, SSET_INTERNAL, SSET_VITAL,
               SSET_TO_CLIENT,

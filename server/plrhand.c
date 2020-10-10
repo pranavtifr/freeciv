@@ -1356,6 +1356,9 @@ void server_player_init(struct player *pplayer, bool initmap,
 {
   player_status_reset(pplayer);
 
+  pplayer->server.action_timestamp = 0;
+  pplayer->server.action_turn = -2; /* before any actual turn */
+
   pplayer->server.got_first_city = FALSE;
   BV_CLR_ALL(pplayer->server.really_gives_vision);
   BV_CLR_ALL(pplayer->server.debug);

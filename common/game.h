@@ -196,6 +196,9 @@ struct civ_game {
       int techpenalty;
       bool turnblock;
       int unitwaittime;   /* minimal time between two movements of a unit */
+      int unitwaittime_range;   /* range over which unitwaittime applies */
+      bool unitwaittime_allied;   /* does unitwaittime apply to allied units */
+      int playerwaittime;   /* minimal time between any two movements made by a player */
       unsigned unitwaittime_style;
       int upgrade_veteran_loss;
       bool vision_reveal_tiles;
@@ -583,6 +586,17 @@ extern struct civ_game game;
 #define GAME_MIN_UNITWAITTIME        0
 #define GAME_MAX_UNITWAITTIME        GAME_MAX_TIMEOUT
 #define GAME_DEFAULT_UNITWAITTIME    0
+
+#define GAME_MIN_UNITWAITTIME_RANGE       -1
+#define GAME_MAX_UNITWAITTIME_RANGE        10
+#define GAME_DEFAULT_UNITWAITTIME_RANGE   -1
+
+#define GAME_DEFAULT_UNITWAITTIME_ALLIED  FALSE
+
+#define GAME_MIN_PLAYERWAITTIME           0
+#define GAME_MAX_PLAYERWAITTIME           GAME_MAX_TIMEOUT
+#define GAME_DEFAULT_PLAYERWAITTIME       0
+
 
 #define GAME_DEFAULT_UNITWAITTIME_STYLE UWT_CLASSICAL
 

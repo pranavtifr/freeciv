@@ -316,6 +316,9 @@ struct player {
       int huts; /* How many huts this player has found */
 
       int bulbs_last_turn; /* Number of bulbs researched last turn only. */
+      
+      time_t action_timestamp;
+      int action_turn;
     } server;
 
     struct {
