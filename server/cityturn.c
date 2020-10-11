@@ -1987,7 +1987,7 @@ static bool city_distribute_surplus_shields(struct player *pplayer,
                       E_UNIT_LOST_MISC, ftc_server,
                       _("%s can't upkeep %s, unit disbanded."),
                       city_link(pcity), unit_link(punit));
-        handle_unit_disband(pplayer, punit->id);
+        unit_do_disband(pplayer, punit, FALSE);
 	/* pcity->surplus[O_SHIELD] is automatically updated. */
       }
     } unit_list_iterate_safe_end;
