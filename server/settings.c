@@ -2741,6 +2741,15 @@ static struct setting settings[] = {
              "This has no effect if 'unitwaittime_range' is set to -1."),
           NULL, NULL, GAME_DEFAULT_UNITWAITTIME_ALLIED)
 
+  GEN_BOOL("unitwaittime_extended", game.server.unitwaittime_extended,
+          SSET_RULES_FLEXIBLE, SSET_INTERNAL, SSET_VITAL, SSET_TO_CLIENT,
+          N_("Unitwaittime also applies to newly-built and captured/bribed units."),
+          N_("If set, newly-built units are subject to unitwaittime so that "
+             "the moment the city production was last touched counts as their "
+             "last \"action\". Also, getting captured/bribed counts as action "
+             "for the victim. "),
+          NULL, NULL, GAME_DEFAULT_UNITWAITTIME_EXTENDED)
+
   GEN_INT("playerwaittime", game.server.playerwaittime,
           SSET_RULES_FLEXIBLE, SSET_INTERNAL, SSET_VITAL, SSET_TO_CLIENT,
           N_("Minimum time between player actions over turn change"),

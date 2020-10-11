@@ -418,6 +418,10 @@ struct city {
       void *ais[FREECIV_AI_MOD_LAST];
 
       struct vision *vision;
+      
+      /* when city production was changed by player */
+      time_t prod_change_timestamp;
+      int prod_change_turn;
     } server;
 
     struct {

@@ -198,6 +198,7 @@ struct civ_game {
       int unitwaittime;   /* minimal time between two movements of a unit */
       int unitwaittime_range;   /* range over which unitwaittime applies */
       bool unitwaittime_allied;   /* does unitwaittime apply to allied units */
+      bool unitwaittime_extended; /* UWT applies to built and captured/bribed units  */
       int playerwaittime;   /* minimal time between any two movements made by a player */
       unsigned unitwaittime_style;
       int upgrade_veteran_loss;
@@ -592,6 +593,8 @@ extern struct civ_game game;
 #define GAME_DEFAULT_UNITWAITTIME_RANGE   -1
 
 #define GAME_DEFAULT_UNITWAITTIME_ALLIED  FALSE
+
+#define GAME_DEFAULT_UNITWAITTIME_EXTENDED  FALSE
 
 #define GAME_MIN_PLAYERWAITTIME           0
 #define GAME_MAX_PLAYERWAITTIME           GAME_MAX_TIMEOUT

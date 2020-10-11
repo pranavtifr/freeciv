@@ -513,6 +513,11 @@ void diplomat_bribe(struct player *pplayer, struct unit *pdiplomat,
     return;
   }
 
+  if (game.server.unitwaittime_extended) {
+    /* Counts as an action even if the move to be tried doesn't succeed */
+    unit_did_action(pdiplomat);
+  }
+
   /* Try to move the briber onto the victim's square unless the victim has
    * been bounced because it couldn't share tile with a unit or city. */
   if (!bounce

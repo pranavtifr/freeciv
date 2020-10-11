@@ -457,6 +457,7 @@ static void game_defaults(void)
     game.server.unitwaittime      = GAME_DEFAULT_UNITWAITTIME;
     game.server.unitwaittime_range    = GAME_DEFAULT_UNITWAITTIME_RANGE;
     game.server.unitwaittime_allied   = GAME_DEFAULT_UNITWAITTIME_ALLIED;
+    game.server.unitwaittime_extended = GAME_DEFAULT_UNITWAITTIME_EXTENDED;
     game.server.playerwaittime        = GAME_DEFAULT_PLAYERWAITTIME;
     game.server.plr_colors        = NULL;
   } else {
