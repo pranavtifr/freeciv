@@ -2052,6 +2052,11 @@ struct unit *unit_change_owner(struct unit *punit, struct player *pplayer,
   gained_unit->paradropped = punit->paradropped;
   gained_unit->server.birth_turn = punit->server.birth_turn;
 
+  if (game.server.unitwaittime_extended) {
+    /* Counts as an action for unitwaittime */
+    unit_did_action(gained_unit);
+  }
+
   send_unit_info(NULL, gained_unit);
 
   /* update unit upkeep in the homecity of the victim */
@@ -4533,11 +4538,115 @@ void unit_list_refresh_vision(struct unit_list *punitlist)
   } unit_list_iterate_end;
 }
 
+
 /****************************************************************************
-  Used to implement the game rule controlled by the unitwaittime setting.
+  Used to implement the game rules controlled by the unitwaittime and
+  playerwaittime settings, including possible extensions like
+  unitwaittime_range.
+  
   Notifies the unit owner if the unit is unable to act.
 ****************************************************************************/
 bool unit_can_do_action_now(const struct unit *punit)
+{  
+  int range = game.server.unitwaittime_range;
+  int time_remaining = 0;
+  
+  if (!punit) {
+    return FALSE;
+  }
+  
+  /* check playerwaittime first */
+  if (! player_can_do_action_now(unit_owner(punit), &time_remaining)) {
+    char buf[64];
+    format_time_duration(time_remaining, buf, sizeof(buf));
+    notify_player(unit_owner(punit), unit_tile(punit), E_BAD_COMMAND,
+                  ftc_server, _("You may not act for another %s "
+                                "this turn. See /help playerwaittime."), buf);
+    return FALSE;  
+  }
+
+  if (game.server.unitwaittime <= 0) {
+    return TRUE;
+  }
+      
+  if (range < 0) {
+    /* traditional behavior: only check the unit itself */
+    if (! unit_can_do_action_now_single(punit, &time_remaining)) {
+      char buf[64];
+      format_time_duration(time_remaining, buf, sizeof(buf));
+      notify_player(unit_owner(punit), unit_tile(punit), E_BAD_COMMAND,
+                    ftc_server, _("Your unit may not act for another %s "
+                                  "this turn. See /help unitwaittime."), buf);
+      return FALSE;
+    } else {
+      return TRUE;
+    }
+  } else {
+    /* check the neighboring squares too */
+    return unit_can_do_action_now_square(punit, range);
+  }
+}
+
+/****************************************************************************
+  Check the unitwaittime for all units within a square centered on punit.
+  If there are units that cannot move, return false and a send a
+  notification containing the type of the unit with longest time remaining.
+****************************************************************************/
+bool unit_can_do_action_now_square(const struct unit *punit, int range)
+{
+  int time_remaining = 0;
+  struct unit *runit = NULL; /* most restrictive unit */
+  bool check_allies = game.server.unitwaittime_allied;
+  
+  /* loop over all nearby owned (and possibly allied) units
+     and find the one with longest UWT remaining. */
+  square_iterate(unit_tile(punit), range, atile) {
+    unit_list_iterate(atile->units, aunit) {
+      int t = 0;
+      if (unit_owner(punit) == unit_owner(aunit) ||
+          (check_allies && pplayers_allied(unit_owner(punit), unit_owner(aunit)))
+         ) {
+        if (! unit_can_do_action_now_single(aunit, &t)) {
+          if (t > time_remaining) {
+            time_remaining = t;
+            runit = aunit;
+          }
+        }
+      }
+    } unit_list_iterate_end;
+  } square_iterate_end;
+
+  if (! runit) {
+    /* no conflicting units, movement allowed */
+    return TRUE;
+  }
+
+  /* punit itself or some nearby unit causes a conflict */
+  char buf[64];
+  format_time_duration(time_remaining, buf, sizeof(buf));
+  if (runit != punit) {
+    bool allied = (unit_owner(punit) != unit_owner(runit));
+    notify_player(unit_owner(punit), unit_tile(punit), E_BAD_COMMAND,
+                  ftc_server, _("Your %s may not act for another %s "
+                                "this turn (due to a nearby %s%s). "
+                                "See /help unitwaittime_range."), 
+                                unit_name_translation(punit), buf,
+                                allied ? "allied " : "",
+                                unit_name_translation(runit));
+  } else {
+    notify_player(unit_owner(punit), unit_tile(punit), E_BAD_COMMAND,
+                  ftc_server, _("Your %s may not act for another %s "
+                                "this turn. See /help unitwaittime."), 
+                                unit_name_translation(punit), buf);
+  }
+  return FALSE;
+}
+
+/****************************************************************************
+  Check the unitwaittime for a single unit, used as helper
+  by unit_can_do_action_now().
+****************************************************************************/
+bool unit_can_do_action_now_single(const struct unit *punit, int *time_remaining)
 {
   time_t dt;
 
@@ -4552,32 +4661,73 @@ bool unit_can_do_action_now(const struct unit *punit)
   if (punit->server.action_turn != game.info.turn - 1) {
     return TRUE;
   }
-
+ 
   dt = time(NULL) - punit->server.action_timestamp;
   if (dt < game.server.unitwaittime) {
-    char buf[64];
-    format_time_duration(game.server.unitwaittime - dt, buf, sizeof(buf));
-    notify_player(unit_owner(punit), unit_tile(punit), E_BAD_COMMAND,
-                  ftc_server, _("Your unit may not act for another %s "
-                                "this turn. See /help unitwaittime."), buf);
+    if (time_remaining) {
+      *time_remaining = game.server.unitwaittime - dt;
+    }
     return FALSE;
   }
 
   return TRUE;
 }
 
+
+/**************************************************************************** 
+  Implement player wait time (PWT), a generalization of unit wait time (UWT).
+  Controlled by the playerwaittime setting. This is called from
+  unit_can_do_action_now(), which is also responsible for notifying the
+  player.
+****************************************************************************/
+bool player_can_do_action_now(const struct player *pplayer, int *time_remaining)
+{
+  time_t dt;
+  int playerwaittime = game.server.playerwaittime;
+
+  if (!pplayer) {
+    return FALSE;
+  }
+
+  if (playerwaittime <= 0) {
+    return TRUE;
+  }
+
+  if (pplayer->server.action_turn != game.info.turn - 1) {
+    return TRUE;
+  }
+ 
+  dt = time(NULL) - pplayer->server.action_timestamp;
+  if (dt < playerwaittime) {
+    if (time_remaining) {
+      *time_remaining = playerwaittime - dt;
+    }
+    return FALSE;
+  }
+
+  return TRUE;
+}
+
+
+
 /****************************************************************************
-  Mark a unit as having done something at the current time. This is used
-  in conjunction with unit_can_do_action_now() and the unitwaittime setting.
+  Mark a unit and its owner as having done something at the current time. 
+  This is used in conjunction with unit_can_do_action_now() and the 
+  unitwaittime and playerwaittime settings.
 ****************************************************************************/
 void unit_did_action(struct unit *punit)
 {
+  struct player *pplayer = NULL;
   if (!punit) {
     return;
   }
 
   punit->server.action_timestamp = time(NULL);
   punit->server.action_turn = game.info.turn;
+  
+  pplayer = unit_owner(punit);
+  pplayer->server.action_timestamp = time(NULL);
+  pplayer->server.action_turn = game.info.turn;
 }
 
 /**************************************************************************

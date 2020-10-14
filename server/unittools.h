@@ -155,6 +155,9 @@ bool unit_move(struct unit *punit, struct tile *ptile, int move_cost,
 bool execute_orders(struct unit *punit, const bool fresh);
 
 bool unit_can_do_action_now(const struct unit *punit);
+bool unit_can_do_action_now_square(const struct unit *punit, int range);
+bool unit_can_do_action_now_single(const struct unit *punit, int *time_remaining);
+bool player_can_do_action_now(const struct player *pplayer, int *time_remaining);
 void unit_did_action(struct unit *punit);
 
 bool unit_can_be_retired(struct unit *punit);

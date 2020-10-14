@@ -1244,6 +1244,9 @@ bool transfer_city(struct player *ptaker, struct city *pcity,
       advisor_choose_build(ptaker, pcity);
     }
 
+    /* Update action timestamp inherited by any units being produced */
+    city_did_prod_change(pcity);
+
     /* What wasn't obsolete for the old owner may be so now. */
     remove_obsolete_buildings_city(pcity, TRUE);
 
@@ -2799,6 +2802,9 @@ void change_build_target(struct player *pplayer, struct city *pcity,
   /* Change build target. */
   pcity->production = *target;
 
+  /* Update action timestamp inherited by the unit being produced */
+  city_did_prod_change(pcity);
+
   /* What's the name of the target? */
   name = city_production_name_translation(pcity);
 
@@ -2839,6 +2845,17 @@ void change_build_target(struct player *pplayer, struct city *pcity,
                   name,
                   city_link(pcity));
   }
+}
+
+
+/**************************************************************************
+  City did something to change production. Used to set action
+  timestamps for new units.
+**************************************************************************/
+void city_did_prod_change(struct city *pcity)
+{
+  pcity->server.prod_change_timestamp = time(NULL);
+  pcity->server.prod_change_turn = game.info.turn;
 }
 
 /**************************************************************************

@@ -1684,17 +1684,28 @@ void handle_unit_change_homecity(struct player *pplayer, int unit_id,
 }
 
 /**************************************************************************
-  Disband a unit.  If its in a city, add 1/2 of the worth of the unit
-  to the city's shield stock for the current production.
+  Handle request from player to disband a unit
 **************************************************************************/
 void handle_unit_disband(struct player *pplayer, int unit_id)
 {
-  struct city *pcity;
   struct unit *punit = player_unit_by_number(pplayer, unit_id);
+  unit_do_disband(pplayer, punit, TRUE);
+}
+
+/**************************************************************************
+  Disband a unit.  If its in a city, add 1/2 of the worth of the unit
+  to the city's shield stock for the current production.
+  Set voluntary to TRUE for orders coming from the player,
+  FALSE for unrequested disband.
+**************************************************************************/
+void unit_do_disband(struct player *pplayer, struct unit *punit, 
+                     bool voluntary)
+{
+  struct city *pcity;
 
   if (NULL == punit) {
     /* Probably died or bribed. */
-    log_verbose("handle_unit_disband() invalid unit %d", unit_id);
+    log_verbose("unit_do_disband() invalid unit id %d", punit->id);
     return;
   }
 
@@ -1704,6 +1715,13 @@ void handle_unit_disband(struct player *pplayer, int unit_id)
                   E_BAD_COMMAND, ftc_server,
                   _("%s refuses to disband!"),
                   unit_link(punit));
+    return;
+  }
+
+  /* with ranged unitwaittime, prevent disbanding one unit on purpose
+     to release others waiting on it */
+  if (voluntary && game.server.unitwaittime_range >= 0 &&
+      ! unit_can_do_action_now(punit)) {
     return;
   }
 

@@ -1987,7 +1987,7 @@ static bool city_distribute_surplus_shields(struct player *pplayer,
                       E_UNIT_LOST_MISC, ftc_server,
                       _("%s can't upkeep %s, unit disbanded."),
                       city_link(pcity), unit_link(punit));
-        handle_unit_disband(pplayer, punit->id);
+        unit_do_disband(pplayer, punit, FALSE);
 	/* pcity->surplus[O_SHIELD] is automatically updated. */
       }
     } unit_list_iterate_safe_end;
@@ -2184,6 +2184,13 @@ static struct unit *city_create_unit(struct city *pcity,
   pplayer->score.units_built++;
   saved_unit_id = punit->id;
 
+  /* Initialize the new unit's action timestamp from when the city
+     production was changed or the unit bought */
+  if (game.server.unitwaittime_extended) {
+    punit->server.action_timestamp = pcity->server.prod_change_timestamp;
+    punit->server.action_turn = pcity->server.prod_change_turn;
+  }
+  
   /* This might destroy pcity and/or punit: */
   script_server_signal_emit("unit_built", 2,
                             API_TYPE_UNIT, punit,

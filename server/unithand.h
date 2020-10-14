@@ -34,6 +34,9 @@ bool unit_move_handling(struct unit *punit, struct tile *pdesttile,
 bool unit_build_city(struct player *pplayer, struct unit *punit,
                      const char *name);
 
+void unit_do_disband(struct player *pplayer, struct unit *punit, 
+                     bool voluntary);
+
 void city_add_or_build_error(struct player *pplayer, struct unit *punit,
                              enum unit_add_build_city_result res);
 
