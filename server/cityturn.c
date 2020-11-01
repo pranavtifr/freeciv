@@ -550,6 +550,8 @@ void update_city_activities(struct player *pplayer)
   if (n > 0) {
     struct city *cities[n];
     int i = 0, r;
+    int nation_unit_upkeep = 0;
+    int nation_impr_upkeep = 0;
 
     city_list_iterate(pplayer->cities, pcity) {
       int ci;
@@ -574,6 +576,20 @@ void update_city_activities(struct player *pplayer)
       cities[i++] = pcity;
     } city_list_iterate_end;
 
+    /* Iterate over cities in a random order. */
+    while (i > 0) {
+      r = fc_rand(i);
+      /* update unit upkeep */
+      city_units_upkeep(cities[r]);
+      update_city_activity(cities[r]);
+
+      /* used based on 'gold_upkeep_style', see below */
+      nation_unit_upkeep += city_total_unit_gold_upkeep(cities[r]);
+      nation_impr_upkeep += city_total_impr_gold_upkeep(cities[r]);
+
+      cities[r] = cities[--i];
+    }
+
     /* How gold upkeep is handled depends on the setting
      * 'game.info.gold_upkeep_style':
      * GOLD_UPKEEP_CITY: Each city tries to balance its upkeep individually
@@ -582,31 +598,29 @@ void update_city_activities(struct player *pplayer)
      *                    buildings individually; the upkeep for units is
      *                    paid by the nation.
      * GOLD_UPKEEP_NATION: The nation as a whole balances the treasury. If
-     *                     the treasury is not balance units and buildings
-     *                     are sold. */
+     *                     the treasury is not balanced units and buildings
+     *                     are sold.
+     */
 
-    /* Iterate over cities in a random order. */
-    while (i > 0) {
-      r = fc_rand(i);
-      /* update unit upkeep */
-      city_units_upkeep(cities[r]);
-      update_city_activity(cities[r]);
-      cities[r] = cities[--i];
-    }
-
-    if (pplayer->economic.gold < 0) {
-      switch (game.info.gold_upkeep_style) {
-      case GOLD_UPKEEP_CITY:
-        break;
-      case GOLD_UPKEEP_MIXED:
-        /* Nation pays for units. */
+    switch (game.info.gold_upkeep_style) {
+    case GOLD_UPKEEP_CITY:
+      /* Cities already handled all upkeep costs. */
+      break;
+    case GOLD_UPKEEP_MIXED:
+      /* Nation pays for units, cities already paid buildings */
+      pplayer->economic.gold -= nation_unit_upkeep;
+      if (pplayer->economic.gold < 0) {
         player_balance_treasury_units(pplayer);
-        break;
-      case GOLD_UPKEEP_NATION:
-        /* Nation pays for units and buildings. */
-        player_balance_treasury_units_and_buildings(pplayer);
-        break;
       }
+      break;
+    case GOLD_UPKEEP_NATION:
+      /* Nation pays for units and buildings. */
+      pplayer->economic.gold -= nation_unit_upkeep;
+      pplayer->economic.gold -= nation_impr_upkeep;
+      if (pplayer->economic.gold < 0) {
+        player_balance_treasury_units_and_buildings(pplayer);
+      }
+      break;
     }
 
     /* Should not happen. */
@@ -2955,28 +2969,36 @@ static void update_city_activity(struct city *pcity)
     pcity->airlift = city_airlift_max(pcity);
     update_bulbs(pplayer, pcity->prod[O_SCIENCE], FALSE);
 
-    /* Update the treasury. */
-    pplayer->economic.gold += pcity->prod[O_GOLD];
-    pplayer->economic.gold -= city_total_impr_gold_upkeep(pcity);
-    pplayer->economic.gold -= city_total_unit_gold_upkeep(pcity);
+    /* Update the treasury, paying upkeeps and checking running out
+     * of gold based on the ruleset setting 'game.info.gold_upkeep_style':
+     * GOLD_UPKEEP_CITY: Cities pay for buildings and units and deficit
+     *                   is checked right here.
+     * GOLD_UPKEEP_MIXED: Cities pay only for buildings; the nation pays
+     *                    for units after all cities are processed.
+     * GOLD_UPKEEP_NATION: The nation pays for buildings and units 
+     *                     only after all cities are processed.
+     *
+     * city_support() in city.c sets pcity->usage[O_GOLD] (and hence
+     * ->surplus[O_GOLD]) according to the setting.
+     */
+    pplayer->economic.gold += pcity->surplus[O_GOLD];
 
     if (pplayer->economic.gold < 0) {
-      /* Not enough gold - we have to sell some buildings, and if that
-       * is not enough, disband units with gold upkeep, taking into
-       * account the setting of 'game.info.gold_upkeep_style':
-       * GOLD_UPKEEP_CITY: Cities pay for buildings and units.
-       * GOLD_UPKEEP_MIXED: Cities pay only for buildings; the nation pays
-       *                    for units.
-       * GOLD_UPKEEP_NATION: The nation pays for buildings and units. */
       switch (game.info.gold_upkeep_style) {
       case GOLD_UPKEEP_CITY:
-      case GOLD_UPKEEP_MIXED:
-        if (!city_balance_treasury_buildings(pcity)
-            && game.info.gold_upkeep_style == GOLD_UPKEEP_CITY) {
+        /* Out of money while paying buildings and units, sell first
+         * and disband if that didn't help */
+        if (!city_balance_treasury_buildings(pcity)) {
           city_balance_treasury_units(pcity);
         }
+        break;        
+      case GOLD_UPKEEP_MIXED:
+        /* Out of money while paying for buildings, sell some. */
+        city_balance_treasury_buildings(pcity);
         break;
       case GOLD_UPKEEP_NATION:
+        /* This shouldn't be possible since all upkeeps are paid later. */
+        fc_assert(FALSE); 
         break;
       }
     }
