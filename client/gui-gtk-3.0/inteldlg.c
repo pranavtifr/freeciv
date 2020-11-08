@@ -333,6 +333,7 @@ void update_intel_dialog(struct player *p)
       const struct player_diplstate *state;
       GtkTreeIter it;
       GValue v = { 0, };
+      char buf[128];
 
       if (other == p || !other->is_alive) {
 	continue;
@@ -341,7 +342,11 @@ void update_intel_dialog(struct player *p)
       gtk_tree_store_append(pdialog->diplstates, &it,
 			    &diplstates[state->type]);
       g_value_init(&v, G_TYPE_STRING);
-      g_value_set_static_string(&v, player_name(other));
+      fc_snprintf(buf, sizeof(buf), "%s%s", player_name(other), 
+                /* TRANS: preserve leading space, 
+                 * used as part of "<Player name> (receives vision)" */
+                gives_shared_vision(p, other) ? _(" (receives vision)") : "");
+      g_value_set_static_string(&v, buf);
       gtk_tree_store_set_value(pdialog->diplstates, &it, 0, &v);
       g_value_unset(&v);
     } players_iterate_end;
