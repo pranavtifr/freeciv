@@ -537,6 +537,16 @@ void send_city_turn_notifications(struct connection *pconn)
 }
 
 /**************************************************************************
+  Save city surplus values for use during city processing.
+**************************************************************************/
+void city_save_surpluses(struct city *pcity)
+{
+  output_type_iterate(o) {
+    pcity->saved_surplus[o] = pcity->surplus[o];
+  } output_type_iterate_end;
+}
+
+/**************************************************************************
   Update all cities of one nation (costs for buildings, unit upkeep, ...).
 **************************************************************************/
 void update_city_activities(struct player *pplayer)
@@ -575,6 +585,13 @@ void update_city_activities(struct player *pplayer)
           }
         }
       }
+
+      /* New city turn: store surplus values so changes during city
+       * processing don't take effect yet. nation_????_upkeep above
+       * also have similar effect.
+       * Note that changes in effects between players, like international
+       * trade routes and Great Wonders may still take place. */
+      city_save_surpluses(pcity);
 
       /* Add cities to array for later random order handling */
       cities[i++] = pcity;
@@ -973,7 +990,11 @@ static void city_populate(struct city *pcity, struct player *nationality)
   int saved_id = pcity->id;
   int granary_size = city_granary_size(city_size_get(pcity));
 
-  pcity->food_stock += pcity->surplus[O_FOOD];
+  /* New city turn: Use saved_surplus here, so that changes from building
+   * units and buildings don't take effect in the middle of city processing.
+   */
+  pcity->food_stock += pcity->saved_surplus[O_FOOD];
+  
   if (pcity->food_stock >= granary_size || city_rapture_grow(pcity)) {
     if (city_had_recent_plague(pcity)) {
       notify_player(city_owner(pcity), city_tile(pcity),
@@ -1994,24 +2015,38 @@ static void upgrade_unit_prod(struct city *pcity)
   FALSE if the _city_ is disbanded as a result.
 **************************************************************************/
 static bool city_distribute_surplus_shields(struct player *pplayer,
-					    struct city *pcity)
+                                            struct city *pcity)
 {
-  if (pcity->surplus[O_SHIELD] < 0) {
+  /* New city turn: use saved_surplus[] instead of surplus[] to avoid
+   * changes possibly made elsewhere from taking effect within the turn
+   * processing. We do need to update the surplus when units are disbanded,
+   * however. handle_unit_disband() does that for surplus[], among other
+   * updates, but do the addition here, to make sure we control that it's
+   * the only change that happens. */
+  int surplus = pcity->saved_surplus[O_SHIELD];
+     
+  if (surplus < 0) {
     unit_list_iterate_safe(pcity->units_supported, punit) {
-      if (utype_upkeep_cost(unit_type_get(punit), pplayer, O_SHIELD) > 0
-	  && pcity->surplus[O_SHIELD] < 0
+      /* Should we look at punit->upkeep[O_SHIELD] here, instead of the
+       * upkeep for the unit type? That's what the gold upkeep calculations
+       * do. The difference is with units that happened to get free upkeep
+       * from EFT_UNIT_UPKEEP_FREE_PER_CITY.
+       */
+      int upkeep = utype_upkeep_cost(unit_type_get(punit), pplayer, O_SHIELD);
+      
+      if (upkeep > 0 && surplus < 0
           && !unit_has_type_flag(punit, UTYF_UNDISBANDABLE)) {
         notify_player(pplayer, city_tile(pcity),
                       E_UNIT_LOST_MISC, ftc_server,
                       _("%s can't upkeep %s, unit disbanded."),
                       city_link(pcity), unit_link(punit));
         unit_do_disband(pplayer, punit, FALSE);
-	/* pcity->surplus[O_SHIELD] is automatically updated. */
+        surplus += upkeep;
       }
     } unit_list_iterate_safe_end;
   }
 
-  if (pcity->surplus[O_SHIELD] < 0) {
+  if (surplus < 0) {
     /* Special case: UTYF_UNDISBANDABLE. This nasty unit won't go so easily.
      * It'd rather make the citizens pay in blood for their failure to upkeep
      * it! If we make it here all normal units are already disbanded, so only
@@ -2019,7 +2054,7 @@ static bool city_distribute_surplus_shields(struct player *pplayer,
     unit_list_iterate_safe(pcity->units_supported, punit) {
       int upkeep = utype_upkeep_cost(unit_type_get(punit), pplayer, O_SHIELD);
 
-      if (upkeep > 0 && pcity->surplus[O_SHIELD] < 0) {
+      if (upkeep > 0 && surplus < 0) {
         fc_assert_action(unit_has_type_flag(punit, UTYF_UNDISBANDABLE),
                          continue);
         notify_player(pplayer, city_tile(pcity),
@@ -2027,20 +2062,23 @@ static bool city_distribute_surplus_shields(struct player *pplayer,
                       _("Citizens in %s perish for their failure to "
                         "upkeep %s!"),
                       city_link(pcity), unit_link(punit));
-	if (!city_reduce_size(pcity, 1, NULL, "upkeep_failure")) {
-	  return FALSE;
-	}
 
-	/* No upkeep for the unit this turn. */
-	pcity->surplus[O_SHIELD] += upkeep;
+        if (!city_reduce_size(pcity, 1, NULL, "upkeep_failure")) {
+          return FALSE;
+        }
+
+        /* No upkeep for the unit this turn. */
+        surplus += upkeep;
       }
     } unit_list_iterate_safe_end;
   }
+  
+  fc_assert(surplus >= 0);
 
   /* Now we confirm changes made last turn. */
-  pcity->shield_stock += pcity->surplus[O_SHIELD];
+  pcity->shield_stock += surplus;
   pcity->before_change_shields = pcity->shield_stock;
-  pcity->last_turns_shield_surplus = pcity->surplus[O_SHIELD];
+  pcity->last_turns_shield_surplus = surplus;
 
   return TRUE;
 }
@@ -3029,7 +3067,7 @@ static void update_city_activity(struct city *pcity)
    *
    * New techs are _not_ invented here yet, so this shouldn't change any production values */
 
-  update_bulbs(pplayer, pcity->prod[O_SCIENCE], FALSE);
+  update_bulbs(pplayer, pcity->saved_surplus[O_SCIENCE], FALSE);
 
   /* Update the treasury, paying upkeeps and checking running out
    * of gold based on the ruleset setting 'game.info.gold_upkeep_style':
@@ -3043,7 +3081,7 @@ static void update_city_activity(struct city *pcity)
    * city_support() in city.c sets pcity->usage[O_GOLD] (and hence
    * ->surplus[O_GOLD]) according to the setting.
    */
-  pplayer->economic.gold += pcity->surplus[O_GOLD];
+  pplayer->economic.gold += pcity->saved_surplus[O_GOLD];
 
   if (pplayer->economic.gold < 0) {
     switch (game.info.gold_upkeep_style) {
@@ -3093,6 +3131,9 @@ static void update_city_activity(struct city *pcity)
 
   /* ------------------------------------------------------------------------
    * Check population growth.
+   * 
+   * Here, make sure to use saved_surplus[] since building _will_ change
+   * output values.
    * This also depends on rapture being set correctly above */
 
   saved_id = pcity->id;
