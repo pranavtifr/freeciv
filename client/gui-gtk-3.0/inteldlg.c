@@ -48,6 +48,7 @@ static const char *table_text[] = {
   N_("Ruler:"),
   N_("Government:"),
   N_("Capital:"),
+  N_("Score:"),
   N_("Gold:"),
   NULL,
   N_("Tax:"),
@@ -61,6 +62,7 @@ enum table_label {
   LABEL_RULER,
   LABEL_GOVERNMENT,
   LABEL_CAPITAL,
+  LABEL_SCORE,
   LABEL_GOLD,
   LABEL_SEP1,
   LABEL_TAX,
@@ -390,6 +392,9 @@ void update_intel_dialog(struct player *p)
           pcity = player_capital(p);
           /* TRANS: "unknown" location */
           buf = g_strdup((!pcity) ? _("(unknown)") : city_name_get(pcity));
+          break;
+        case LABEL_SCORE:
+          buf = g_strdup_printf("%d", p->score.game);
           break;
         case LABEL_GOLD:
           buf = g_strdup_printf("%d", p->economic.gold);
