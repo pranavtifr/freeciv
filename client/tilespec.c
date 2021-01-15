@@ -293,6 +293,7 @@ struct named_sprites {
   struct {
     struct sprite
       *disorder,
+      *happy,
       *size[NUM_TILES_DIGITS],
       *size_tens[NUM_TILES_DIGITS],
       *size_hundreds[NUM_TILES_DIGITS],
@@ -2991,6 +2992,7 @@ static void tileset_lookup_sprite_tags(struct tileset *t)
 #undef SET_EDITOR_SPRITE
 
   SET_SPRITE(city.disorder, "city.disorder");
+  SET_SPRITE(city.happy, "city.happy");
 
   /* Fallbacks for goto path turn numbers:
    *   path.step_%d, path.exhausted_mp_%d
@@ -5651,6 +5653,9 @@ int fill_sprite_array(struct tileset *t,
       }
       if (pcity->client.unhappy) {
 	ADD_SPRITE_FULL(t->sprites.city.disorder);
+      }
+      if (pcity->client.happy) {
+	ADD_SPRITE_FULL(t->sprites.city.happy);
       }
     }
     break;
