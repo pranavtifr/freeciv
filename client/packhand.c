@@ -477,10 +477,10 @@ void handle_unit_combat_info(int attacker_unit_id, int defender_unit_id,
   struct unit *punit1 = game_unit_by_number(defender_unit_id);
 
   create_event(unit_tile(punit1), E_UNIT_LOST_ATT, ftc_client,
-               _("Combat result: defending %s (%d) %d hp, attacking %s"
-                 "(%d) %d hp."), unit_name_translation(punit1),
-               defender_unit_id, defender_hp, unit_name_translation(punit0),
-               attacker_unit_id, attacker_hp);
+               _("Combat result: defending %s (%d) %d hp (vet:%d), attacking %s"
+                 "(%d) %d hp (vet: %d). (%s)"), unit_name_translation(punit1),
+               defender_unit_id, defender_hp, punit1->veteran, unit_name_translation(punit0),
+               attacker_unit_id, attacker_hp, punit0->veteran, make_winner_veteran?"Promoted":"Not Promoted");
 
   if (punit0 && punit1) {
     popup_combat_info(attacker_unit_id, defender_unit_id, attacker_hp,
