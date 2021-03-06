@@ -133,7 +133,7 @@ static bool player_balance_treasury_units(struct player *pplayer);
 static bool disband_city(struct city *pcity);
 
 static void define_orig_production_values(struct city *pcity);
-static void update_city_activity(struct city *pcity);
+static bool update_city_activity(struct city *pcity);
 static void nullify_caravan_and_disband_plus(struct city *pcity);
 static bool city_illness_check(const struct city * pcity);
 
@@ -604,11 +604,11 @@ void update_city_activities(struct player *pplayer)
       r = fc_rand(i);
       /* update unit upkeep */
       city_units_upkeep(cities[r]);
-      update_city_activity(cities[r]);
-
-      /* used based on 'gold_upkeep_style', see below */
-      nation_unit_upkeep += city_total_unit_gold_upkeep(cities[r]);
-      nation_impr_upkeep += city_total_impr_gold_upkeep(cities[r]);
+      if (update_city_activity(cities[r])) {
+        /* used based on 'gold_upkeep_style', see below */
+        nation_unit_upkeep += city_total_unit_gold_upkeep(cities[r]);
+        nation_impr_upkeep += city_total_impr_gold_upkeep(cities[r]);
+      }
 
       cities[r] = cities[--i];
     }
@@ -3034,14 +3034,15 @@ static bool city_handle_disorder(struct city *pcity)
 
 /**************************************************************************
   Called every turn, at end of turn, for every city.
+  Returns true if the city is still alive.
 **************************************************************************/
-static void update_city_activity(struct city *pcity)
+static bool update_city_activity(struct city *pcity)
 {
   struct player *pplayer = city_owner(pcity);
   int saved_id;
 
   if (!pcity) {
-    return;
+    return FALSE;
   }
 
   if (city_refresh(pcity)) {
@@ -3140,7 +3141,7 @@ static void update_city_activity(struct city *pcity)
 
   if (! city_build_stuff(pplayer, pcity)) {
     /* City disbanded... */
-    return;
+    return FALSE;
   }
 
 
@@ -3160,7 +3161,7 @@ static void update_city_activity(struct city *pcity)
   city_populate(pcity, pplayer);
   if (NULL == player_city_by_number(pplayer, saved_id)) {
     /* City destroyed by famine */
-    return;
+    return FALSE;
   }
 
 
@@ -3182,6 +3183,7 @@ static void update_city_activity(struct city *pcity)
     auto_arrange_workers(pcity);
   }
   sanity_check_city(pcity);
+  return TRUE;
 }
 
 /*****************************************************************************
