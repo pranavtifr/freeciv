@@ -456,6 +456,24 @@ static const char *cr_entry_gold(const struct city *pcity,
 }
 
 /************************************************************************
+  Returns gold upkeep for buildings written to string.
+  Returned string is statically allocated and its contents change when
+  this function is called again.
+*************************************************************************/
+static const char *cr_entry_improv_upkeep(const struct city *pcity,
+				 const void *data)
+{
+  static char buf[8];
+  int gupkeep=0;
+  city_built_iterate(pcity, improv){
+      gupkeep += city_improvement_upkeep(pcity, improv);
+  }city_built_iterate_end;
+
+  fc_snprintf(buf, sizeof(buf), "%3d", -(gupkeep));
+  return buf;
+}
+
+/************************************************************************
   Returns luxury output written to string.
   Returned string is statically allocated and its contents change when
   this function is called again.
@@ -759,6 +777,8 @@ static const struct city_report_spec base_city_report_specs[] = {
     NULL, FUNC_TAG(output) },
   { FALSE, 3, 1, NULL, N_("?Gold:G"), N_("Economy: Gold"),
     NULL, FUNC_TAG(gold) },
+  { FALSE, 3, 1, NULL, N_("?Gold:-G"), N_("Economy: Building Upkeep"),
+    NULL, FUNC_TAG(improv_upkeep) },
   { FALSE, 3, 1, NULL, N_("?Luxury:L"), N_("Economy: Luxury"),
     NULL, FUNC_TAG(luxury) },
   { FALSE, 3, 1, NULL, N_("?Science:S"), N_("Economy: Science"),
