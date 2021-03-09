@@ -233,6 +233,31 @@ static const char *cr_entry_angry(const struct city *pcity,
 }
 
 /************************************************************************
+  Returns number of max content citizens written to string.
+  Returned string is statically allocated and its contents change when
+  this function is called again.
+*************************************************************************/
+static const char *cr_entry_max_content(const struct city *pcity,
+				  const void *data)
+{
+  static char buf[8];
+  int max_content;
+  int base_content = player_content_citizens(pcity->owner)- city_specialists(pcity);
+  int citylux = pcity->prod[O_LUXURY];
+  while(citylux >= game.info.happy_cost && base_content > 0){ 
+      /* makes content happy, so reduces max content*/
+      base_content--;
+      citylux -= game.info.happy_cost;
+  }
+  base_content += (citylux%(2*game.info.happy_cost))/game.info.happy_cost;
+  max_content = base_content +
+                get_city_bonus(pcity, EFT_MAKE_CONTENT) +
+                pcity->martial_law;
+  fc_snprintf(buf, sizeof(buf), "%2d",max_content - pcity->feel[CITIZEN_CONTENT][FEELING_FINAL]);
+  return buf;
+}
+
+/************************************************************************
   Returns list of specialists written to string.
   Returned string is statically allocated and its contents change when
   this function is called again.
@@ -738,6 +763,8 @@ static const struct city_report_spec base_city_report_specs[] = {
     N_("?happy/content/unhappy/angry:H/C/U/A"),
     N_("Workers: Happy, Content, Unhappy, Angry"),
     NULL, FUNC_TAG(workers) },
+  { FALSE, 2, 1, NULL, N_("?Number of additional citizens that can be made content with the current infrastructure:+C"), N_("Workers: Extra Possible Content"),
+    NULL, FUNC_TAG(max_content) },
 
   { FALSE, 8, 1, N_("Best"), N_("attack"),
     N_("Best attacking units"), NULL, FUNC_TAG(attack)},
