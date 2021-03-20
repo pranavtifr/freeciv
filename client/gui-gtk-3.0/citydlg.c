@@ -3021,10 +3021,8 @@ static void buy_callback(GtkWidget *w, gpointer data)
   struct city_dialog *pdialog = data;
   const char *name = city_production_name_translation(pdialog->pcity);
   int value = city_production_buy_gold_cost(pdialog->pcity);
-
   int remaining_prod = city_production_build_shield_cost(pdialog->pcity)
         - pdialog->pcity->shield_stock;
-
   char buf[1024];
 
   if (!can_client_issue_orders()) {
