@@ -18,7 +18,11 @@
 #include <stdarg.h>
 
 #ifdef HAVE_MAPIMG_MAGICKWAND
+#ifdef FREECIV_MWAND7
+  #include <MagickWand/MagickWand.h>
+#else  /* FREECIV_MWAND7 */
   #include <wand/MagickWand.h>
+#endif /* FREECIV_MWAND7 */
 #endif /* HAVE_MAPIMG_MAGICKWAND */
 
 /* utility */
@@ -305,7 +309,6 @@ BV_DEFINE(bv_mapdef_arg, MAPDEF_COUNT);
 #define MAX_LEN_MAPARG MAX_LEN_MAPDEF
 #define MAX_NUM_MAPIMG 10
 
-static inline bool mapimg_initialised(void);
 static bool mapimg_test(int id);
 static bool mapimg_define_arg(struct mapdef *pmapdef, enum mapdef_arg arg,
                               const char *val, bool check);
@@ -1164,6 +1167,7 @@ const struct strvec *mapimg_get_format_list(void)
            format = imageformat_next(format)) {
         if (toolkit->formats & format) {
           char str_format[64];
+
           fc_snprintf(str_format, sizeof(str_format), "%s|%s",
                       imagetool_name(tool), imageformat_name(format));
           strvec_append(format_list, str_format);
@@ -1422,7 +1426,7 @@ bool mapimg_create(struct mapdef *pmapdef, bool force, const char *savename,
 /****************************************************************************
   Create images which shows all map colors (playercolor, terrain colors). One
   image is created for each supported toolkit and image format. The filename
-  will be <basename as used for savegames>-colortest-<tookit>.<format>.
+  will be <basename as used for savegames>-colortest-<toolkit>.<format>.
 ****************************************************************************/
 bool mapimg_colortest(const char *savename, const char *path)
 {
@@ -1504,11 +1508,16 @@ bool mapimg_colortest(const char *savename, const char *path)
          format = imageformat_next(format)) {
       if (toolkit->formats & format) {
         char buf[128];
+        const char *tname = imagetool_name(tool);
 
         /* Set the image format. */
         pmapdef->format = format;
 
-        fc_snprintf(buf, sizeof(buf), "colortest-%s", imagetool_name(tool));
+        if (tname != NULL) {
+          fc_snprintf(buf, sizeof(buf), "colortest-%s", tname);
+        } else {
+          fc_snprintf(buf, sizeof(buf), "colortest");
+        }
         /* filename for color test */
         generate_save_name(savename, mapimgfile, sizeof(mapimgfile), buf);
 
@@ -1536,7 +1545,7 @@ bool mapimg_colortest(const char *savename, const char *path)
 /****************************************************************************
   Check if the map image subsustem is initialised.
 ****************************************************************************/
-static inline bool mapimg_initialised(void)
+bool mapimg_initialised(void)
 {
   return mapimg.init;
 }

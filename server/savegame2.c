@@ -2295,8 +2295,9 @@ static void sg_load_game(struct loaddata *loading)
 
   game.info.turn
     = secfile_lookup_int_default(loading->file, 0, "game.turn");
-  sg_failure_ret(secfile_lookup_int(loading->file, &game.info.year,
+  sg_failure_ret(secfile_lookup_int(loading->file, &game.info.year32,
                                     "game.year"), "%s", secfile_error());
+  game.info.year16 = game.info.year32;
   game.info.year_0_hack
     = secfile_lookup_bool_default(loading->file, FALSE, "game.year_0_hack");
 
@@ -2428,7 +2429,7 @@ static void sg_save_game(struct savedata *saving)
                      "game.timeoutcounter");
 
   secfile_insert_int(saving->file, game.info.turn, "game.turn");
-  secfile_insert_int(saving->file, game.info.year, "game.year");
+  secfile_insert_int(saving->file, game.info.year32, "game.year");
   secfile_insert_bool(saving->file, game.info.year_0_hack,
                       "game.year_0_hack");
 
@@ -6743,6 +6744,11 @@ static void sg_load_player_vision(struct loaddata *loading,
       if (NULL != pcity) {
         update_dumb_city(plr, pcity);
       }
+    } else if (!game.server.foggedborders && map_is_known(ptile, plr)) {
+      /* Non fogged borders aren't loaded. See hrm Bug #879084 */
+      struct player_tile *plrtile = map_get_player_tile(ptile, plr);
+
+      plrtile->owner = tile_owner(ptile);
     }
   } whole_map_iterate_end;
 }
@@ -7475,6 +7481,22 @@ static void sg_load_sanitycheck(struct loaddata *loading)
     adv_data_phase_done(pplayer);
 
     pplayer->ai_controlled = saved_ai_control;
+  } players_iterate_end;
+
+  /* Prevent a buggy or intentionally crafted save game from crashing
+   * Freeciv. See hrm Bug #887748 */
+  players_iterate(pplayer) {
+    city_list_iterate(pplayer->cities, pcity) {
+      worker_task_list_iterate(pcity->task_reqs, ptask) {
+        if (!worker_task_is_sane(ptask)) {
+          log_error("[city id: %d] Bad worker task %d.",
+                    pcity->id, ptask->act);
+          worker_task_list_remove(pcity->task_reqs, ptask);
+          free(ptask);
+          ptask = NULL;
+        }
+      } worker_task_list_iterate_end;
+    } city_list_iterate_end;
   } players_iterate_end;
 
   /* Check worked tiles map */

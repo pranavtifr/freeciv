@@ -67,6 +67,7 @@ void setup_gui_funcs(void)
   funcs->canvas_free = gui_canvas_free;
   funcs->canvas_set_zoom = gui_canvas_set_zoom;
   funcs->has_zoom_support = gui_has_zoom_support;
+  funcs->canvas_mapview_init = gui_canvas_mapview_init;
   funcs->canvas_copy = gui_canvas_copy;
   funcs->canvas_put_sprite = gui_canvas_put_sprite;
   funcs->canvas_put_sprite_full = gui_canvas_put_sprite_full;
@@ -106,10 +107,12 @@ void setup_gui_funcs(void)
 
   funcs->popup_combat_info = gui_popup_combat_info;
   funcs->update_timeout_label = gui_update_timeout_label;
+  funcs->start_turn = gui_start_turn;
   funcs->real_city_dialog_popup = gui_real_city_dialog_popup;
   funcs->real_city_dialog_refresh = gui_real_city_dialog_refresh;
   funcs->popdown_city_dialog = gui_popdown_city_dialog;
   funcs->popdown_all_city_dialogs = gui_popdown_all_city_dialogs;
+  funcs->city_to_disappear = gui_city_to_disappear;
   funcs->handmade_scenario_warning = gui_handmade_scenario_warning;
   funcs->refresh_unit_city_dialogs = gui_refresh_unit_city_dialogs;
   funcs->city_dialog_is_open = gui_city_dialog_is_open;

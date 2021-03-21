@@ -1064,18 +1064,6 @@ struct player *city_owner(const struct city *pcity)
   return pcity->owner;
 }
 
-#ifndef city_tile
-/**************************************************************************
-  Return the tile location of the city.
-  Not (yet) always used, mostly for debugging.
-**************************************************************************/
-struct tile *city_tile(const struct city *pcity)
-{
-  return pcity->tile;
-}
-#endif
-
-
 /*****************************************************************************
   Get the city size.
 *****************************************************************************/
@@ -1296,6 +1284,11 @@ int city_tile_output(const struct city *pcity, const struct tile *ptile,
   Calculate the production output the given tile is capable of producing
   for the city.  The output type is given by 'otype' (generally O_FOOD,
   O_SHIELD, or O_TRADE).
+
+  NOTE: As of now, return value does not represent output on end of turn
+  if city stops celebrating, because the server side tile output cache
+  uses base_city_celebrating() instead of city_celebrating() on
+  city_tile_cache_update().
 **************************************************************************/
 int city_tile_output_now(const struct city *pcity, const struct tile *ptile,
 			 Output_type_id otype)
@@ -3204,25 +3197,6 @@ bool city_is_virtual(const struct city *pcity)
   }
 
   return pcity != game_city_by_number(pcity->id);
-}
-
-/**************************************************************************
-  Return TRUE if the city is centered at the given tile.
-
-  NB: This doesn't simply check whether pcity->tile == ptile because that
-  would miss virtual clones made of city center tiles, which are used by
-  autosettler to judge whether improvements are worthwhile.  The upshot is
-  that city centers would appear to lose their irrigation/farmland bonuses
-  as well as their minimum outputs of one food and one shield, and thus
-  autosettler would rarely transform or mine them.
-**************************************************************************/
-bool is_city_center(const struct city *pcity, const struct tile *ptile)
-{
-  if (!pcity || !pcity->tile || !ptile) {
-    return FALSE;
-  }
-
-  return tile_index(city_tile(pcity)) == tile_index(ptile);
 }
 
 /**************************************************************************

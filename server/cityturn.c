@@ -724,7 +724,7 @@ bool city_reduce_size(struct city *pcity, citizens pop_loss,
   auto_arrange_workers(pcity);
 
   /* Send city data. */
-  sync_cities();
+  send_city_info(NULL, pcity);
 
   fc_assert_ret_val_msg(0 == loss_remain, TRUE,
                         "city_reduce_size() has remaining"
@@ -1149,14 +1149,16 @@ static bool worklist_change_build_target(struct player *pplayer,
     {
       struct impr_type *ptarget = target.value.building;
       struct impr_type *pupdate = building_upgrades_to(pcity, ptarget);
+      bool purge;
 
       /* If the city can never build this improvement, drop it. */
       success = can_city_build_improvement_later(pcity, pupdate);
+      purge = !success;
 
       /* Maybe this improvement has been obsoleted by something that
 	 we can build. */
-      if (!success && can_city_build_improvement_later(pcity, ptarget)) {
-        success = TRUE;
+      if (purge && can_city_build_improvement_later(pcity, ptarget)) {
+        purge = FALSE;
 	bool known = FALSE;
 
 	/* Nope, no use.  *sigh*  */
@@ -1179,7 +1181,7 @@ static bool worklist_change_build_target(struct player *pplayer,
                                           pcity, "need_tech");
               } else {
                 /* While techs can be unlearned, this isn't useful feedback */
-                success = FALSE;
+                purge = TRUE;
               }
 	      break;
             case VUT_TECHFLAG:
@@ -1196,7 +1198,7 @@ static bool worklist_change_build_target(struct player *pplayer,
                                           pcity, "need_techflag");
               } else {
                 /* While techs can be unlearned, this isn't useful feedback */
-                success = FALSE;
+                purge = TRUE;
               }
               break;
 	    case VUT_IMPROVEMENT:
@@ -1260,7 +1262,7 @@ static bool worklist_change_build_target(struct player *pplayer,
                                           pcity, "need_achievement");
               } else {
                 /* Can't unachieve things. */
-                success = FALSE;
+                purge = TRUE;
               }
 	      break;
 	    case VUT_EXTRA:
@@ -1517,7 +1519,7 @@ static bool worklist_change_build_target(struct player *pplayer,
                                           pcity, "need_minculture");
               } else {
                 /* What has been written may not be unwritten. */
-                success = FALSE;
+                purge = TRUE;
               }
 	      break;
 	    case VUT_MAXTILEUNITS:
@@ -1557,7 +1559,7 @@ static bool worklist_change_build_target(struct player *pplayer,
               break;
             case VUT_AI_LEVEL:
               /* Can't change AI level. */
-              success = FALSE;
+              purge = TRUE;
 	      break;
 	    case VUT_TERRAINCLASS:
               if (preq->present) {
@@ -1713,7 +1715,7 @@ static bool worklist_change_build_target(struct player *pplayer,
                                           pcity, "need_minyear");
               } else {
                 /* Can't go back in time. */
-                success = FALSE;
+                purge = TRUE;
               }
               break;
             case VUT_TOPO:
@@ -1730,7 +1732,7 @@ static bool worklist_change_build_target(struct player *pplayer,
                 script_server_signal_emit("building_cant_be_built", ptarget,
                                           pcity, "need_topo");
               }
-              success = FALSE;
+              purge = TRUE;
               break;
             case VUT_AGE:
               if (preq->present) {
@@ -1745,7 +1747,7 @@ static bool worklist_change_build_target(struct player *pplayer,
                                           pcity, "need_age");
               } else {
                 /* Can't go back in time. */
-                success = FALSE;
+                purge = TRUE;
               }
               break;
             case VUT_NONE:
@@ -1788,10 +1790,9 @@ static bool worklist_change_build_target(struct player *pplayer,
                       city_improvement_name_translation(pcity, pupdate),
                       city_link(pcity));
 	target.value.building = pupdate;
-	success = TRUE;
       }
 
-      if (!success) {
+      if (purge) {
 	/* Never in a million years. */
         notify_player(pplayer, city_tile(pcity),
                       E_CITY_CANTBUILD, ftc_server,

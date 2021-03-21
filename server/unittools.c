@@ -1529,11 +1529,15 @@ void transform_unit(struct unit *punit, struct unit_type *to_unit,
                          - game.server.upgrade_veteran_loss, 0);
   }
 
-  /* Scale HP and MP, rounding down.  Be careful with integer arithmetic,
-   * and don't kill the unit.  unit_move_rate is used to take into account
+  /* Scale HP and MP, rounding down. Be careful with integer arithmetic,
+   * and don't kill the unit. unit_move_rate() is used to take into account
    * global effects like Magellan's Expedition. */
   punit->hp = MAX(punit->hp * unit_type_get(punit)->hp / old_hp, 1);
-  punit->moves_left = punit->moves_left * unit_move_rate(punit) / old_mr;
+  if (old_mr == 0) {
+    punit->moves_left = unit_move_rate(punit);
+  } else {
+    punit->moves_left = punit->moves_left * unit_move_rate(punit) / old_mr;
+  }
 
   unit_forget_last_activity(punit);
 
@@ -2197,22 +2201,9 @@ void kill_unit(struct unit *pkiller, struct unit *punit, bool vet)
   }
 
   if (!is_stack_vulnerable(unit_tile(punit)) || unitcount == 1) {
-    notify_player(pvictor, unit_tile(pkiller), E_UNIT_WIN_ATT, ftc_server,
-                  /* TRANS: "... Cannon ... the Polish Destroyer." */
-                  _("Your attacking %s succeeded against the %s %s!"),
-                  pkiller_link,
-                  nation_adjective_for_player(pvictim),
-                  punit_link);
     if (vet) {
       notify_unit_experience(pkiller);
     }
-    notify_player(pvictim, unit_tile(punit), E_UNIT_LOST_DEF, ftc_server,
-                  /* TRANS: "Cannon ... the Polish Destroyer." */
-                  _("%s lost to an attack by the %s %s."),
-                  punit_link,
-                  nation_adjective_for_player(pvictor),
-                  pkiller_link);
-
     wipe_unit(punit, ULR_KILLED, pvictor);
   } else { /* unitcount > 1 */
     int i;
@@ -2241,17 +2232,19 @@ void kill_unit(struct unit *pkiller, struct unit *punit, bool vet)
       }
     } unit_list_iterate_end;
 
-    /* Inform the destroyer: lots of different cases here! */
-    notify_player(pvictor, unit_tile(pkiller), E_UNIT_WIN_ATT, ftc_server,
-                  /* TRANS: "... Cannon ... the Polish Destroyer ...." */
-                  PL_("Your attacking %s succeeded against the %s %s "
-                      "(and %d other unit)!",
-                      "Your attacking %s succeeded against the %s %s "
-                      "(and %d other units)!", unitcount - 1),
-                  pkiller_link,
-                  nation_adjective_for_player(pvictim),
-                  punit_link,
-                  unitcount - 1);
+    /* Inform the destroyer again if more than one unit was killed */
+    if (unitcount > 1) {
+      notify_player(pvictor, unit_tile(pkiller), E_UNIT_WIN_ATT, ftc_server,
+                    /* TRANS: "... Cannon ... the Polish Destroyer ...." */
+                    PL_("Your attacking %s succeeded against the %s %s "
+                        "(and %d other unit)!",
+                        "Your attacking %s succeeded against the %s %s "
+                        "(and %d other units)!", unitcount - 1),
+                    pkiller_link,
+                    nation_adjective_for_player(pvictim),
+                    punit_link,
+                    unitcount - 1);
+    }
     if (vet) {
       notify_unit_experience(pkiller);
     }
@@ -2863,7 +2856,7 @@ bool do_paradrop(struct unit *punit, struct tile *ptile)
     return FALSE;
   } else if (distance < 1) {
     notify_player(pplayer, ptile, E_BAD_COMMAND, ftc_server,
-                  _("Already here."));
+                  _("Already there."));
     return FALSE;
   }
 
@@ -2947,6 +2940,11 @@ bool do_paradrop(struct unit *punit, struct tile *ptile)
   }
 
   if (is_non_attack_city_tile(ptile, pplayer)
+      || (is_non_allied_city_tile(ptile, pplayer)
+          && (pplayer->ai_common.barbarian_type == ANIMAL_BARBARIAN
+              || !uclass_has_flag(unit_class_get(punit),
+                               UCF_CAN_OCCUPY_CITY)
+              || unit_has_type_flag(punit, UTYF_CIVILIAN)))
       || is_non_allied_unit_tile(ptile, pplayer)) {
     map_show_circle(pplayer, ptile, unit_type_get(punit)->vision_radius_sq);
     maybe_make_contact(ptile, pplayer);

@@ -1,4 +1,4 @@
-/**********************************************************************
+/***********************************************************************
  Freeciv - Copyright (C) 1996-2004 - The Freeciv Team
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -179,8 +179,8 @@ void fc_client::create_main_page(void)
     strncpy(msgbuf, _("Qt client"), sizeof(msgbuf) - 1);
   }
 
-  painter.drawText(main_graphics.width()-fm.width(msgbuf)-10,
-                   main_graphics.height()-fm.descent(), msgbuf);
+  painter.drawText(main_graphics.width() - fm.horizontalAdvance(msgbuf) - 10,
+                   main_graphics.height() - fm.descent(), msgbuf);
   free_main_pic->setPixmap(main_graphics);
   pages_layout[PAGE_MAIN]->addWidget(free_main_pic,
                                      row++, 0, 1, 2, Qt::AlignCenter);
@@ -1090,7 +1090,10 @@ void fc_client::start_scenario()
     send_chat("/detach");
   }
   if (is_server_running() && !current_file.isEmpty()) {
-    send_chat_printf("/load %s", current_file.toLocal8Bit().data());
+    QByteArray c_bytes;
+
+    c_bytes = current_file.toLocal8Bit();
+    send_chat_printf("/load %s", c_bytes.data());
     switch_page(PAGE_GAME + 1);
   }
 }
@@ -1105,7 +1108,10 @@ void fc_client::start_from_save()
     send_chat("/detach");
   }
   if (is_server_running() && !current_file.isEmpty()) {
-    send_chat_printf("/load %s", current_file.toLocal8Bit().data());
+    QByteArray c_bytes;
+
+    c_bytes = current_file.toLocal8Bit();
+    send_chat_printf("/load %s", c_bytes.data());
     switch_page(PAGE_GAME + 1);
   }
 }
@@ -1125,19 +1131,20 @@ void fc_client::slot_selection_changed(const QItemSelection &selected,
   QVariant qvar;
   QString str_pixmap;
 
-  client_pages i = current_page();
+  client_pages cpage = current_page();
   const char *terr_name;
   const struct server *pserver = NULL;
   int ii = 0;
   int k, col, n, nat_y, nat_x;
   struct section_file *sf;
   struct srv_list *srvrs;
+  QByteArray fn_bytes;
 
   if (indexes.isEmpty()) {
     return;
   }
 
-  switch (i) {
+  switch (cpage) {
   case PAGE_NETWORK:
     index = indexes.at(0);
     connect_host_edit->setText(index.data().toString());
@@ -1211,7 +1218,8 @@ void fc_client::slot_selection_changed(const QItemSelection &selected,
       load_save_text->setText("");
       break;
     }
-    if ((sf = secfile_load_section(current_file.toLocal8Bit().data(),
+    fn_bytes = current_file.toLocal8Bit();
+    if ((sf = secfile_load_section(fn_bytes.data(),
                                    "game", TRUE))) {
       const char *sname;
       bool sbool;
@@ -1220,13 +1228,14 @@ void fc_client::slot_selection_changed(const QItemSelection &selected,
       QString pl_str = nullptr;
       int num_players = 0;
       int curr_player = 0;
+      QByteArray pl_bytes;
 
       integer = secfile_lookup_int_default(sf, -1, "game.turn");
       if (integer >= 0) {
         final_str = QString("<b>") + _("Turn") + ":</b> "
                     + QString::number(integer).toHtmlEscaped() + "<br>";
       }
-      if ((sf = secfile_load_section(current_file.toLocal8Bit().data(),
+      if ((sf = secfile_load_section(fn_bytes.data(),
                                      "players", TRUE))) {
         integer = secfile_lookup_int_default(sf, -1, "players.nplayers");
         if (integer >= 0) {
@@ -1237,8 +1246,9 @@ void fc_client::slot_selection_changed(const QItemSelection &selected,
       }
       for (int i = 0; i < num_players; i++) {
         pl_str = QString("player") + QString::number(i);
-        if ((sf = secfile_load_section(current_file.toLocal8Bit().data(),
-                                       pl_str.toLocal8Bit().data(), true))) {
+        pl_bytes = pl_str.toLocal8Bit();
+        if ((sf = secfile_load_section(fn_bytes.data(),
+                                       pl_bytes.data(), true))) {
           if (!(sbool = secfile_lookup_bool_default(sf, true,
                                        "player%d.unassigned_user",
                                        i))) {
@@ -1254,8 +1264,9 @@ void fc_client::slot_selection_changed(const QItemSelection &selected,
       }
 
       /* Information about human player */
-      if ((sf = secfile_load_section(current_file.toLocal8Bit().data(),
-                                     pl_str.toLocal8Bit().data(), true))) {
+      pl_bytes = pl_str.toLocal8Bit();
+      if ((sf = secfile_load_section(fn_bytes.data(),
+                                     pl_bytes.data(), true))) {
         sname = secfile_lookup_str_default(sf, nullptr, "player%d.nation",
                                            curr_player);
         if (sname) {
@@ -1298,7 +1309,7 @@ void fc_client::slot_selection_changed(const QItemSelection &selected,
         } terrain_type_iterate_end;
 
         /* Load possible terrains and their identifiers (chars) */
-        if ((sf = secfile_load_section(current_file.toLocal8Bit().data(),
+        if ((sf = secfile_load_section(fn_bytes.data(),
                                        "savefile", true)))
           while ((terr_name = secfile_lookup_str_default(sf, NULL,
                                  "savefile.terrident%d.name", ii)) != NULL) {
@@ -1313,17 +1324,20 @@ void fc_client::slot_selection_changed(const QItemSelection &selected,
 
         /* Create image */
         QImage img(nat_x, nat_y, QImage::Format_ARGB32_Premultiplied);
+
         img.fill(Qt::black);
         for (int a = 0 ; a < nat_x; a++) {
           for (int b = 0; b < nat_y; b++) {
             struct terrain *tr;
             struct rgbcolor *rgb;
+
             tr = char2terrain(str_pixmap.at(b * nat_x + a).toLatin1());
             if (tr != nullptr) {
               rgb = tr->rgb;
-              QColor col;
-              col.setRgb(rgb->r, rgb->g, rgb->b);
-              img.setPixel(a, b, col.rgb());
+              QColor color;
+
+              color.setRgb(rgb->r, rgb->g, rgb->b);
+              img.setPixel(a, b, color.rgb());
             }
           }
         }
@@ -1334,7 +1348,7 @@ void fc_client::slot_selection_changed(const QItemSelection &selected,
         }
         load_pix->setFixedSize(load_pix->pixmap()->width(),
                                load_pix->pixmap()->height());
-        if ((sf = secfile_load_section(current_file.toLocal8Bit().data(),
+        if ((sf = secfile_load_section(fn_bytes.data(),
                                        "research", TRUE))) {
           sname = secfile_lookup_str_default(sf, nullptr,
                                              "research.r%d.now_name",
@@ -1407,7 +1421,6 @@ void fc_client::update_scenarios_page(void)
       QTableWidgetItem *item;
       QString format;
       QString st;
-      QStringList sl;
       int fcver;
       int current_ver = MAJOR_VERSION *10000 + MINOR_VERSION *100;
 
@@ -1535,7 +1548,7 @@ void fc_client::handle_authentication_req(enum authentication_type type,
 }
 
 /**************************************************************************
-  if on the network page, switch page to the login page (with new server
+  If on the network page, switch page to the login page (with new server
   and port). if on the login page, send connect and/or authentication
   requests to the server.
 **************************************************************************/
@@ -1543,11 +1556,14 @@ void fc_client::slot_connect()
 {
   char errbuf [512];
   struct packet_authentication_reply reply;
+  QByteArray ba_bytes;
 
   switch (connection_status) {
   case LOGIN_TYPE:
-    sz_strlcpy(user_name, connect_login_edit->text().toLocal8Bit().data());
-    sz_strlcpy(server_host, connect_host_edit->text().toLocal8Bit().data());
+    ba_bytes = connect_login_edit->text().toLocal8Bit();
+    sz_strlcpy(user_name, ba_bytes.data());
+    ba_bytes = connect_host_edit->text().toLocal8Bit();
+    sz_strlcpy(server_host, ba_bytes.data());
     server_port = connect_port_edit->text().toInt();
 
     if (connect_to_server(user_name, server_host, server_port,
@@ -1559,9 +1575,11 @@ void fc_client::slot_connect()
 
     return;
   case NEW_PASSWORD_TYPE:
-    sz_strlcpy(password, connect_password_edit->text().toLatin1().data());
+    ba_bytes = connect_password_edit->text().toLatin1();
+    sz_strlcpy(password, ba_bytes.data());
+    ba_bytes = connect_confirm_password_edit->text().toLatin1();
     sz_strlcpy(reply.password,
-               connect_confirm_password_edit->text().toLatin1().data());
+               ba_bytes.data());
 
     if (strncmp(reply.password, password, MAX_LEN_NAME) == 0) {
       password[0] = '\0';
@@ -1574,8 +1592,9 @@ void fc_client::slot_connect()
 
     return;
   case ENTER_PASSWORD_TYPE:
+    ba_bytes = connect_password_edit->text().toLatin1();
     sz_strlcpy(reply.password,
-               connect_password_edit->text().toLatin1().data());
+               ba_bytes.data());
     send_packet_authentication_reply(&client.conn, &reply);
     set_connection_state(WAITING_TYPE);
     return;

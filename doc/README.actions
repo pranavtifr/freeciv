@@ -91,9 +91,9 @@ actor requirements.
  * If player A having a diplomatic relationship to player B implies that
    player B has the same relationship to player A the relationship is
    symmetric. Examples: "Is foreign" and "War"
- * Symmetric local DiplReal requirements can be moved directly from the
+ * Symmetric local DiplRel requirements can be moved directly from the
    target requirement vector to the actor requirement vector.
- * Asymmetric local DiplReal requirements must test for the same thing in
+ * Asymmetric local DiplRel requirements must test for the same thing in
    the opposite direction. Example: "Hosts embassy" -> "Has embassy"
 
 Actions and Lua
@@ -198,6 +198,8 @@ Actions done by a unit against a city
 
 "Steal Gold" - Steal some gold from the owner of the target city.
  * UI name can be set using ui_name_steal_gold
+ * adjustable with the Max_Stolen_Gold_Pm effect and with the
+   Thiefs_Share_Pm effect
  * actor must be aware that the target exists
  * the targets owner must have more than 0 gold.
  * actor must be on the same tile as the target or on the tile next to it.

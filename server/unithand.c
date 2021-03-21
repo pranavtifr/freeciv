@@ -32,6 +32,7 @@
 #include "city.h"
 #include "combat.h"
 #include "events.h"
+#include "featured_text.h"
 #include "game.h"
 #include "log.h"
 #include "map.h"
@@ -1013,6 +1014,10 @@ static void illegal_action(struct player *pplayer,
   int punishment_mp;
   struct ane_expl *explnat;
 
+  /* Explain why the action was illegal. */
+  explnat = expl_act_not_enabl(actor, stopped_action,
+                               target_tile, target_city, target_unit);
+
   /* The mistake may have a cost. */
   punishment_mp = get_target_bonus_effects(NULL,
                                            unit_owner(actor),
@@ -1039,10 +1044,6 @@ static void illegal_action(struct player *pplayer,
                   unit_name_translation(actor),
                   move_points_text(punishment_mp, TRUE));
   }
-
-  /* Explain why the action was illegal. */
-  explnat = expl_act_not_enabl(actor, stopped_action,
-                               target_tile, target_city, target_unit);
   switch (explnat->kind) {
   case ANEK_BAD_TERRAIN_ACT:
     {
@@ -2242,6 +2243,9 @@ already made all necessary checks.
 static void unit_attack_handling(struct unit *punit, struct unit *pdefender)
 {
   char loser_link[MAX_LEN_LINK], winner_link[MAX_LEN_LINK];
+  char attacker_vet[MAX_LEN_LINK], defender_vet[MAX_LEN_LINK];
+  char attacker_fp[MAX_LEN_LINK], defender_fp[MAX_LEN_LINK];
+  char attacker_tired[MAX_LEN_LINK];
   struct unit *ploser, *pwinner;
   struct city *pcity;
   int moves_used, def_moves_used; 
@@ -2251,7 +2255,13 @@ static void unit_attack_handling(struct unit *punit, struct unit *pdefender)
   struct player *pplayer = unit_owner(punit);
   bool adj;
   enum direction8 facing;
-  int att_hp, def_hp;
+  int att_hp, def_hp, att_fp, def_fp;
+  int att_hp_start = punit->hp;
+  int def_hp_start = pdefender->hp;
+  int def_power = get_total_defense_power(punit, pdefender);
+  int att_power = get_total_attack_power(punit, pdefender);
+
+  get_modified_firepower(punit, pdefender, &att_fp, &def_fp);
   
   log_debug("Start attack: %s %s against %s %s.",
             nation_rule_name(nation_of_player(pplayer)),
@@ -2301,6 +2311,18 @@ static void unit_attack_handling(struct unit *punit, struct unit *pdefender)
 
   old_unit_vet = punit->veteran;
   old_defender_vet = pdefender->veteran;
+
+  /* N.B.: unit_veteran_level_string always returns the same pointer. */
+  sz_strlcpy(attacker_vet, unit_veteran_level_string(punit));
+  sz_strlcpy(defender_vet, unit_veteran_level_string(pdefender));
+
+  /* N.B.: unit_firepower_if_not_one always returns the same pointer. */
+  sz_strlcpy(attacker_fp, unit_firepower_if_not_one(att_fp));
+  sz_strlcpy(defender_fp, unit_firepower_if_not_one(def_fp));
+
+  /* Record tired attack string before attack */
+  sz_strlcpy(attacker_tired, unit_tired_attack_string(punit));
+
   unit_versus_unit(punit, pdefender, FALSE, &att_hp, &def_hp);
 
   if ((att_hp <= 0 || uclass_has_flag(unit_class_get(punit), UCF_MISSILE))
@@ -2372,21 +2394,54 @@ static void unit_attack_handling(struct unit *punit, struct unit *pdefender)
 
     notify_player(unit_owner(pwinner), unit_tile(pwinner),
                   E_UNIT_WIN, ftc_server,
-                  /* TRANS: "Your Cannon ... the Polish Destroyer." */
-                  _("Your %s survived the pathetic attack from the %s %s."),
+                  /* TRANS: "Your green Legion [id:100 ...D:4.0 lost 1 HP,
+                   * 9 HP remaining] survived the pathetic ...attack from the
+                   * green Greek Warriors [id:90 ...A:1.0 HP:10]. */
+                  _("Your %s %s [id:%d %sD:%.1f lost %d HP, %d HP remaining]"
+                    " survived the pathetic %sattack from the %s %s %s "
+                    "[id:%d %sA:%.1f HP:%d]."),
+                  defender_vet,
                   winner_link,
+                  pdefender->id,
+                  defender_fp,
+                  (float)def_power/POWER_FACTOR,
+                  def_hp_start - pdefender->hp,
+                  pdefender->hp,
+                  attacker_tired,
                   nation_adjective_for_player(unit_owner(ploser)),
-                  loser_link);
+                  attacker_vet,
+                  loser_link,
+                  punit->id,
+                  attacker_fp,
+                  (float)att_power/POWER_FACTOR,
+                  att_hp_start);
+
     if (vet) {
       notify_unit_experience(pwinner);
     }
     notify_player(unit_owner(ploser), def_tile,
                   E_UNIT_LOST_ATT, ftc_server,
-                  /* TRANS: "... Cannon ... the Polish Destroyer." */
-                  _("Your attacking %s failed against the %s %s!"),
-                  loser_link,
-                  nation_adjective_for_player(unit_owner(pwinner)),
-                  winner_link);
+                  /* TRANS: "Your attacking green Cannon [id:100 ...A:8.0
+                   * failed against the Greek Polish Destroyer [id:200 lost
+                   * 27 HP, 3 HP remaining%s]!";
+                   * last %s is either "and ..." or empty string */
+                 _("Your attacking %s %s [id:%d %sA:%.1f HP:%d] failed "
+                   "against the %s %s %s [id:%d lost %d HP, %d HP "
+                   "remaining%s]!"),
+                 attacker_vet,
+                 loser_link,
+                 punit->id,
+                 attacker_fp,
+                 (float)att_power/POWER_FACTOR,
+                 att_hp_start,
+                 nation_adjective_for_player(unit_owner(pdefender)),
+                 defender_vet,
+                 winner_link,
+                 pdefender->id,
+                 def_hp_start - pdefender->hp,
+                 pdefender->hp,
+                 vet ? unit_achieved_rank_string(pdefender) : "");
+
     wipe_unit(ploser, ULR_KILLED, unit_owner(pwinner));
   } else {
     /* The defender lost, the attacker punit lives! */
@@ -2396,6 +2451,53 @@ static void unit_attack_handling(struct unit *punit, struct unit *pdefender)
               unit_rule_name(punit),
               nation_rule_name(nation_of_unit(pdefender)),
               unit_rule_name(pdefender));
+
+    notify_player(unit_owner(pdefender), unit_tile(pdefender),
+                  E_UNIT_LOST_DEF, ftc_server,
+                  /* TRANS: "Your green Warriors [id:100 ...D:1.0 HP:10]
+                   * lost to an attack by the Greek green Legion
+                   * [id:200 ...A:4.0 lost 1 HP, has 9 HP remaining%s]."
+                   * last %s is either "and ..." or empty string */
+                  _("Your %s %s [id:%d %sD:%.1f HP:%d] lost to an attack by "
+                    "the %s %s %s [id:%d %sA:%.1f lost %d HP, has %d HP "
+                    "remaining%s]."),
+                  defender_vet,
+                  loser_link,
+                  pdefender->id,
+                  defender_fp,
+                  (float)def_power/POWER_FACTOR,
+                  def_hp_start,
+                  nation_adjective_for_player(unit_owner(punit)),
+                  attacker_vet,
+                  winner_link,
+                  punit->id,
+                  attacker_fp,
+                  (float)att_power/POWER_FACTOR,
+                  att_hp_start - pwinner->hp,
+                  pwinner->hp,
+                  vet ? unit_achieved_rank_string(punit) : "");
+
+    notify_player(unit_owner(punit), unit_tile(punit),
+                  E_UNIT_WIN_ATT, ftc_server,
+                  /* TRANS: "Your attacking green Legion [id:200 ...A:4.0
+                   * lost 1 HP, has 9 HP remaining] succeeded against the
+                   * Greek green Warriors [id:100 HP:10]." */
+                  _("Your attacking %s %s [id:%d %s%sA:%.1f lost %d HP, "
+                    "has %d remaining] succeeded against the %s %s %s "
+                    "[id:%d HP:%d]."),
+                  attacker_vet,
+                  winner_link,
+                  punit->id,
+                  attacker_fp,
+                  attacker_tired,
+                  (float)att_power/POWER_FACTOR,
+                  att_hp_start - pwinner->hp,
+                  pwinner->hp,
+                  nation_adjective_for_player(unit_owner(pdefender)),
+                  defender_vet,
+                  loser_link,
+                  pdefender->id,
+                  def_hp_start);
 
     punit->moved = TRUE;	/* We moved */
     kill_unit(pwinner, ploser,
@@ -2586,9 +2688,23 @@ bool unit_move_handling(struct unit *punit, struct tile *pdesttile,
     return FALSE;
   }
 
-  /*** Phase 2: Special abilities checks ***/
+  /*** Phase 2: Attempted action interpretation checks ***/
 
-  /* Actors. Pop up an action selection dialog in the client.
+  /* Check if the move should be interpreted as an attempt to perform an
+   * enabler controlled action to the target tile. When the move may be an
+   * action attempt the server stops moving the unit, marks it as wanting a
+   * decision based on its own movement to the tile it attempted to move to
+   * and notifies the client.
+   *
+   * In response to the unit being marked as wanting a decision the client
+   * can query the server for what actions the unit, given the player's
+   * knowledge, may be able to perform against a target at the tile it tried
+   * to move to. The server will respond to the query with the actions that
+   * may be enabled and, when all actions are known to be illegal given the
+   * player's knowledge, an explanation why no action could be done. The
+   * client will probably use the list of potentially legal actions, if any,
+   * to pop up an action selection dialog. See handle_unit_action_query()
+   *
    * If the AI has used a goto to send an actor to a target do not
    * pop up a dialog in the client.
    * For tiles occupied by allied cities or units, keep moving if
@@ -2839,6 +2955,7 @@ static void do_unit_help_build_wonder(struct player *pplayer,
   if (city_owner(pcity_dest) != unit_owner(punit)) {
     /* Tell the city owner about the gift he just received. */
 
+    send_city_info(city_owner(pcity_dest), pcity_dest);
     notify_player(city_owner(pcity_dest), city_tile(pcity_dest),
                   E_CARAVAN_ACTION, ftc_server,
                   /* TRANS: Help building the Pyramids in Bergen received
@@ -3065,10 +3182,13 @@ static bool do_unit_establish_trade(struct player *pplayer,
   }
 
   if (can_establish) {
+    struct player *partner_player;
 
     /* Announce creation of trade route (it's not actually created until
      * later in this function, as we have to cancel existing routes, but
      * it makes more sense to announce in this order) */
+
+    partner_player = city_owner(pcity_dest);
 
     /* Always tell the unit owner */
     notify_player(pplayer, NULL,
@@ -3076,8 +3196,8 @@ static bool do_unit_establish_trade(struct player *pplayer,
                   _("New trade route established from %s to %s."),
                   homecity_link,
                   destcity_link);
-    if (pplayer != city_owner(pcity_dest)) {
-      notify_player(city_owner(pcity_dest), city_tile(pcity_dest),
+    if (pplayer != partner_player) {
+      notify_player(partner_player, city_tile(pcity_dest),
                     E_CARAVAN_ACTION, ftc_server,
                     _("The %s established a trade route between their "
                       "city %s and %s."),
@@ -3125,7 +3245,7 @@ static bool do_unit_establish_trade(struct player *pplayer,
 
     /* Notify the owners of the cities. */
     send_city_info(pplayer, pcity_homecity);
-    send_city_info(city_owner(pcity_dest), pcity_dest);
+    send_city_info(partner_player, pcity_dest);
     city_list_iterate(cities_out_of_home, pcity) {
       send_city_info(city_owner(pcity), pcity);
     } city_list_iterate_end;
@@ -3134,15 +3254,17 @@ static bool do_unit_establish_trade(struct player *pplayer,
     } city_list_iterate_end;
 
     /* Notify each player about the other cities so that they know about
-     * its size for the trade calculation . */
-    if (pplayer != city_owner(pcity_dest)) {
-      send_city_info(city_owner(pcity_dest), pcity_homecity);
+     * its size for the trade calculation. */
+    if (pplayer != partner_player) {
+      reality_check_city(partner_player, city_tile(pcity_homecity));
+      send_city_info(partner_player, pcity_homecity);
+      reality_check_city(pplayer, city_tile(pcity_dest));
       send_city_info(pplayer, pcity_dest);
     }
 
     city_list_iterate(cities_out_of_home, pcity) {
-      if (city_owner(pcity_dest) != city_owner(pcity)) {
-        send_city_info(city_owner(pcity_dest), pcity);
+      if (partner_player != city_owner(pcity)) {
+        send_city_info(partner_player, pcity);
         send_city_info(city_owner(pcity), pcity_dest);
       }
       if (pplayer != city_owner(pcity)) {
@@ -3152,8 +3274,8 @@ static bool do_unit_establish_trade(struct player *pplayer,
     } city_list_iterate_end;
 
     city_list_iterate(cities_out_of_dest, pcity) {
-      if (city_owner(pcity_dest) != city_owner(pcity)) {
-        send_city_info(city_owner(pcity_dest), pcity);
+      if (partner_player != city_owner(pcity)) {
+        send_city_info(partner_player, pcity);
         send_city_info(city_owner(pcity), pcity_dest);
       }
       if (pplayer != city_owner(pcity)) {
@@ -3740,6 +3862,14 @@ void handle_worker_task(struct player *pplayer,
       ptask->tgt = NULL;
     }
     ptask->want = packet->want;
+  }
+
+  if (ptask && !worker_task_is_sane(ptask)) {
+    log_debug("Bad worker task");
+    worker_task_list_remove(pcity->task_reqs, ptask);
+    free(ptask);
+    ptask = NULL;
+    return;
   }
 
   lsend_packet_worker_task(pplayer->connections, packet);

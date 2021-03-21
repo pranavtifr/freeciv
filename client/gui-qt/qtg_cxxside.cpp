@@ -55,6 +55,7 @@ void setup_gui_funcs()
   funcs->canvas_free = qtg_canvas_free;
   funcs->canvas_set_zoom = qtg_canvas_set_zoom;
   funcs->has_zoom_support = qtg_has_zoom_support;
+  funcs->canvas_mapview_init = qtg_canvas_mapview_init;
   funcs->canvas_copy = qtg_canvas_copy;
   funcs->canvas_put_sprite = qtg_canvas_put_sprite;
   funcs->canvas_put_sprite_full = qtg_canvas_put_sprite_full;
@@ -94,10 +95,12 @@ void setup_gui_funcs()
 
   funcs->popup_combat_info = qtg_popup_combat_info;
   funcs->update_timeout_label = qtg_update_timeout_label;
+  funcs->start_turn = qtg_start_turn;
   funcs->real_city_dialog_popup = qtg_real_city_dialog_popup;
   funcs->real_city_dialog_refresh = qtg_real_city_dialog_refresh;
   funcs->popdown_city_dialog = qtg_popdown_city_dialog;
   funcs->popdown_all_city_dialogs = qtg_popdown_all_city_dialogs;
+  funcs->city_to_disappear = qtg_city_to_disappear;
   funcs->handmade_scenario_warning = qtg_handmade_scenario_warning;
   funcs->refresh_unit_city_dialogs = qtg_refresh_unit_city_dialogs;
   funcs->city_dialog_is_open = qtg_city_dialog_is_open;

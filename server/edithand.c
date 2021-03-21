@@ -19,6 +19,7 @@
 
 /* utility */
 #include "bitvector.h"
+#include "capability.h"
 #include "fcintl.h"
 #include "log.h"
 #include "shared.h"
@@ -1401,19 +1402,24 @@ void handle_edit_game(struct connection *pc,
                       const struct packet_edit_game *packet)
 {
   bool changed = FALSE;
+  int year;
 
-  if (packet->year != game.info.year) {
+  if (has_capability("year32", pc->capability)) {
+    year = packet->year32;
+  } else {
+    year = packet->year16;
+  }
+  if (year != game.info.year32) {
+    const int min_year = -30000, max_year = 30000;
 
-    /* 'year' is stored in a signed short. */
-    const short min_year = -30000, max_year = 30000;
-
-    if (!(min_year <= packet->year && packet->year <= max_year)) {
+    if (!(min_year <= year && year <= max_year)) {
       notify_conn(pc->self, NULL, E_BAD_COMMAND, ftc_editor,
                   _("Cannot set invalid game year %d. Valid year range "
                     "is from %d to %d."),
-                  packet->year, min_year, max_year);
+                  year, min_year, max_year);
     } else {
-      game.info.year = packet->year;
+      game.info.year32 = year;
+      game.info.year16 = year;
       changed = TRUE;
     }
   }
@@ -1428,8 +1434,11 @@ void handle_edit_game(struct connection *pc,
     changed = TRUE;
   }
 
+  FC_STATIC_ASSERT(sizeof(packet->scenario_authors) == sizeof(game.scenario.authors),
+                   scen_authors_field_size_mismatch);
+
   if (0 != strncmp(packet->scenario_authors, game.scenario.authors,
-                   MAX_LEN_PACKET)) {
+                   sizeof(game.scenario.authors))) {
     sz_strlcpy(game.scenario.authors, packet->scenario_authors);
     changed = TRUE;
   }

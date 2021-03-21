@@ -90,7 +90,7 @@ static int redraw_edit_chain(struct EDIT *pEdt)
   /* draw loop */
   while (pInputChain_TMP) {
     Dest_Copy.x += iStart_Mod_X;
-    /* chech if we draw inside of edit rect */
+    /* check if we draw inside of edit rect */
     if (Dest_Copy.x > pEdt->pWidget->size.x + pEdt->pBg->w - 4) {
       break;
     }
@@ -637,8 +637,8 @@ enum Edit_Return_Codes edit_field(struct widget *pEdit_Widget)
 
   SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY, SDL_DEFAULT_REPEAT_INTERVAL);
 
-  pEdt.pBg = create_bcgnd_surf(pEdit_Widget->theme, 2,
-			       pEdit_Widget->size.w, pEdit_Widget->size.h);
+  pEdt.pBg = create_bcgnd_surf(pEdit_Widget->theme, FC_WS_PRESSED,
+                               pEdit_Widget->size.w, pEdit_Widget->size.h);
 
   /* Creating Chain */
   pEdt.pBeginTextChain = text2chain(pEdit_Widget->string16->text);

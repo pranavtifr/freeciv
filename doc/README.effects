@@ -98,7 +98,10 @@ CityTile is either "Center" (city center) or "Claimed" (owned).
 DiplRel is a diplomatic relationship.
 MaxUnitsOnTile is about the number of units present on a tile.
 UnitState is "Transported" or "OnLivableTile".
-MinMoveFargs is the minimum move fragments the unit must have left.
+MinMoveFrags is the minimum move fragments the unit must have left.
+Nationality is fulfilled by any citizens of the given nationality
+present in the city.
+
 
 Effect types
 ============
@@ -111,7 +114,11 @@ one much worse effect (the number of players required to gain an advance
 is increased).
 
 Airlift
-    Allow airlift to/from a city.
+    Allow airlift to/from a city. The value tells how many units per
+    turn can be airlifted, unless server setting 'airlifttingstyle' sets
+    the number unlimited for either source or destination city. If airlifts
+    are set to unlimited, they are enabled by any positive value of this
+    effect.
 
 Any_Government
     Allow changing to any form of government regardless of tech prerequisites.
@@ -506,6 +513,21 @@ National_Performance
 National_History
     Value is how much history type (cumulative) culture, not tied to any any
     specific city, nation produces.
+
+
+Effects and Lua
+===============
+Lua has some integration with effects. The effects module allows you to
+get an effect type's current value given that it is evaluated against the
+entities you specify. Only a subset of the entities a hard coded effect can
+be evaluated against is supported. An effect type's value is the sum of the
+effects of that type from effects.ruleset whos requirement vectors are
+fulfilled given the entities you specified.
+
+Example
+-------
+Get the value of Tech_Parasite for the player
+effects.player_bonus(find.player(0), "Tech_Parasite")
 
 
 Details about requirement types

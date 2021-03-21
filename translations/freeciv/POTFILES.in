@@ -135,6 +135,7 @@ client/gui-gtk-3.22/voteinfo_bar.c
 client/gui-gtk-3.22/wldlg.c
 client/gui-qt/chatline.cpp
 client/gui-qt/citydlg.cpp
+client/gui-qt/citydlg.h
 client/gui-qt/cityrep.cpp
 client/gui-qt/dialogs.cpp
 client/gui-qt/diplodlg.cpp
@@ -240,6 +241,7 @@ client/helpdata.c
 client/include/helpdlg_g.h
 client/luaconsole_common.c
 client/mapctrl_common.c
+client/mapview_common.c
 client/options.c
 client/packhand.c
 client/plrdlg_common.c
@@ -247,9 +249,11 @@ client/repodlgs_common.c
 client/servers.c
 client/text.c
 client/tilespec.c
+client/tilespec.h
 common/actions.c
 common/actions.h
 common/ai.c
+common/base.h
 common/calendar.c
 common/city.c
 common/clientutils.c
@@ -259,6 +263,7 @@ common/events.c
 common/extras.h
 common/fc_cmdhelp.c
 common/fc_types.h
+common/featured_text.c
 common/game.h
 common/government.c
 common/mapimg.c
@@ -267,6 +272,7 @@ common/player.c
 common/player.h
 common/research.c
 common/requirements.c
+common/road.h
 common/team.c
 common/tech.c
 common/tech.h

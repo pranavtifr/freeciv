@@ -133,6 +133,8 @@ static struct {
 
 extern const char forced_tileset_name[];
 
+static int last_turn = 0;
+
 /****************************************************************************
   Called below, and by client/client_main.c client_game_free()
 ****************************************************************************/
@@ -1194,15 +1196,29 @@ void handle_worker_task(const struct packet_worker_task *packet)
     ptask->want = packet->want;
   }
 
+  if (ptask && !worker_task_is_sane(ptask)) {
+    log_debug("Bad worker task");
+    worker_task_list_remove(pcity->task_reqs, ptask);
+    free(ptask);
+    ptask = NULL;
+    return;
+  }
+
   refresh_city_dialog(pcity);
 }
 
 /**************************************************************************
   Handle turn and year advancement.
 **************************************************************************/
-void handle_new_year(int year, int fragments, int turn)
+void handle_new_year(int year16, int year32, int fragments, int turn)
 {
-  game.info.year = year;
+  if (has_capability("year32", client.conn.capability)) {
+    game.info.year32 = year32;
+    game.info.year16 = year32;
+  } else {
+    game.info.year32 = year16;
+    game.info.year16 = year16;
+  }
   game.info.fragment_count = fragments;
   /*
    * The turn was increased in handle_end_turn()
@@ -1237,6 +1253,11 @@ void handle_new_year(int year, int fragments, int turn)
   }
 
   agents_new_turn();
+
+  if (last_turn != turn) {
+    start_turn();
+    last_turn = turn;
+  }
 }
 
 /**************************************************************************
@@ -1965,7 +1986,7 @@ void handle_set_topology(int topology_id)
   game.map.topology_id = topology_id;
 
   if (forced_tileset_name[0] == '\0'
-      && (tileset_map_topo_compatible(topology_id, tileset) != TOPO_COMPATIBLE
+      && (tileset_map_topo_compatible(topology_id, tileset, NULL) != TOPO_COMPATIBLE
           || strcmp(tileset_basename(tileset), game.control.preferred_tileset))) {
     const char *ts_to_load;
 
@@ -1983,6 +2004,8 @@ void handle_set_topology(int topology_id)
 ****************************************************************************/
 void handle_map_info(int xsize, int ysize, int topology_id)
 {
+  int ts_topo;
+
   if (!map_is_empty()) {
     map_free();
   }
@@ -1990,8 +2013,9 @@ void handle_map_info(int xsize, int ysize, int topology_id)
   game.map.xsize = xsize;
   game.map.ysize = ysize;
 
-  if (tileset_map_topo_compatible(topology_id, tileset) == TOPO_INCOMP_HARD) {
-    tileset_error(LOG_NORMAL, _("Map topology and tileset incompatible."));
+  if (tileset_map_topo_compatible(topology_id, tileset, &ts_topo) == TOPO_INCOMP_HARD) {
+    tileset_error(LOG_NORMAL, _("Map topology (%s) and tileset (%s) incompatible."),
+                  describe_topology(topology_id), describe_topology(ts_topo));
   }
 
   game.map.topology_id = topology_id;
@@ -2050,6 +2074,10 @@ void handle_game_info(const struct packet_game_info *pinfo)
    * packets. */
   if (!has_capability("techloss_forgiveness", client.conn.capability)) {
     game.info.techloss_forgiveness = techloss_forgiveness;
+  }
+
+  if (!has_capability("year32", client.conn.capability)) {
+    game.info.year32 = game.info.year16;
   }
 
   /* check the values! */
@@ -2779,7 +2807,11 @@ void handle_spaceship_info(const struct packet_spaceship_info *p)
   ship->habitation   = p->habitation;
   ship->life_support = p->life_support;
   ship->solar_panels = p->solar_panels;
-  ship->launch_year  = p->launch_year;
+  if (has_capability("year32", client.conn.capability)) {
+    ship->launch_year = p->launch_year32;
+  } else {
+    ship->launch_year = p->launch_year16;
+  }
   ship->population   = p->population;
   ship->mass         = p->mass;
   ship->support_rate = p->support_rate;

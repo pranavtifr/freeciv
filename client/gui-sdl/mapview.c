@@ -69,12 +69,6 @@ extern SDL_Rect *pInfo_Area;
 int overview_start_x = 0;
 int overview_start_y = 0;
 
-static enum {
-  NORMAL = 0,
-  BORDERS = 1,
-  TEAMS
-} overview_mode = NORMAL;
-
 static struct canvas *overview_canvas;
 static struct canvas *city_map_canvas;
 static struct canvas *terrain_canvas;
@@ -297,13 +291,13 @@ void set_indicator_icons(struct sprite *bulb, struct sprite *sol,
   struct widget *pBuf = NULL;
   char cBuf[128];
   
-  pBuf = get_widget_pointer_form_main_list(ID_WARMING_ICON);
+  pBuf = get_widget_pointer_from_main_list(ID_WARMING_ICON);
   FREESURFACE(pBuf->theme);
   pBuf->theme = adj_surf(GET_SURF(sol));
   widget_redraw(pBuf);
   widget_mark_dirty(pBuf);
     
-  pBuf = get_widget_pointer_form_main_list(ID_COOLING_ICON);
+  pBuf = get_widget_pointer_from_main_list(ID_COOLING_ICON);
   FREESURFACE(pBuf->theme);
   pBuf->theme = adj_surf(GET_SURF(flake));
   widget_redraw(pBuf);
@@ -1039,19 +1033,6 @@ void update_city_descriptions(void)
 /* =============================== Mini Map ============================ */
 /* ===================================================================== */
 
-/**************************************************************************
-...
-**************************************************************************/
-void toggle_overview_mode(void)
-{
-  /* FIXME: has no effect anymore */
-  if (overview_mode == BORDERS) {
-    overview_mode = NORMAL;
-  } else {
-    overview_mode = BORDERS;
-  }
-}
-
 /****************************************************************************
   Return a canvas that is the overview window.
 ****************************************************************************/
@@ -1202,3 +1183,9 @@ void update_overview_scroll_window_pos(int x, int y)
 {
   /* TODO: PORTME. */
 }
+
+/**************************************************************************
+  New turn callback
+**************************************************************************/
+void start_turn(void)
+{}

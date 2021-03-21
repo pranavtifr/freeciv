@@ -1,4 +1,4 @@
-/********************************************************************** 
+/***********************************************************************
  Freeciv - Copyright (C) 1996 - A Kjeldberg, L Gregersen, P Unold
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -132,6 +132,13 @@ void canvas_set_zoom(struct canvas *store, float zoom)
 bool has_zoom_support(void)
 {
   return FALSE;
+}
+
+/****************************************************************************
+  Initialize canvas as mapview.
+****************************************************************************/
+void canvas_mapview_init(struct canvas *store)
+{
 }
 
 /****************************************************************************
@@ -895,3 +902,9 @@ void update_overview_scroll_window_pos(int x, int y)
 {
   /* TODO: PORTME. */
 }
+
+/**************************************************************************
+  New turn callback
+**************************************************************************/
+void start_turn(void)
+{}

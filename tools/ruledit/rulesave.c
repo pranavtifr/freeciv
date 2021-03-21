@@ -1172,6 +1172,9 @@ static bool save_governments_ruleset(const char *filename, const char *name)
     secfile_insert_int(sfile, pmul->step, "%s.step", path);
     secfile_insert_int(sfile, pmul->def, "%s.default", path);
 
+    save_default_int(sfile, pmul->offset, 0, path, "offset");
+    save_default_int(sfile, pmul->factor, 100, path, "factor");
+
     save_strvec(sfile, pmul->helptext, path, "helptext");
   } multipliers_iterate_end;
 
@@ -1660,7 +1663,7 @@ static bool save_terrain_ruleset(const char *filename, const char *name)
                        "parameters.igter_cost");
   }
   if (terrain_control.pythagorean_diagonal != RS_DEFAULT_PYTHAGOREAN_DIAGONAL) {
-    secfile_insert_bool(sfile, TRUE,
+    secfile_insert_bool(sfile, terrain_control.pythagorean_diagonal,
                         "parameters.pythagorean_diagonal");
   }
   if (game.map.server.ocean_resources) {

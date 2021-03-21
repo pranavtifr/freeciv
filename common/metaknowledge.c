@@ -146,7 +146,7 @@ static bool can_plr_see_all_sym_diplrels_of(const struct player *pplayer,
 }
 
 /**************************************************************************
-  Is an evalutaion of the requirement accurate when pow_player evaluates
+  Is an evaluation of the requirement accurate when pow_player evaluates
   it?
 
   TODO: Move the data to a data file. That will
@@ -522,7 +522,7 @@ static bool is_req_knowable(const struct player *pow_player,
       || req->source.kind == VUT_EXTRA
       || req->source.kind == VUT_EXTRAFLAG
       || req->source.kind == VUT_BASEFLAG
-      || req->source.kind == VUT_BASEFLAG) {
+      || req->source.kind == VUT_ROADFLAG) {
     if (target_tile == NULL) {
       /* The tile may exist but not be passed when the problem type is
        * RPT_POSSIBLE. */

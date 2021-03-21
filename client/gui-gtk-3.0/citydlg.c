@@ -94,6 +94,7 @@ struct city_dialog;
 struct unit_node {
   GtkWidget *cmd;
   GtkWidget *pix;
+  int height;
 };
 
 /* get 'struct unit_node' and related function */
@@ -142,7 +143,8 @@ struct city_dialog {
   GtkWidget *notebook;
 
   GtkWidget *popup_menu;
-  GtkWidget *citizen_pixmap;
+  GtkWidget *citizen_images;
+  cairo_surface_t *citizen_surface;
 
   struct {
     struct city_map_canvas map_canvas;
@@ -362,7 +364,7 @@ void reset_city_dialogs(void)
   init_citydlg_dimensions();
 
   dialog_list_iterate(dialog_list, pdialog) {
-    /* There's no reasonable way to resize a GtkPixcomm, so we don't try.
+    /* There's no reasonable way to resize a GtkImage, so we don't try.
        Instead we just redraw the overview within the existing area.  The
        player has to close and reopen the dialog to fix this. */
     city_dialog_update_map(pdialog);
@@ -849,8 +851,11 @@ static GtkWidget *create_citydlg_improvement_list(struct city_dialog *pdialog,
   GtkCellRenderer *rend;
 
   /* improvements */
-  store = gtk_list_store_new(5, G_TYPE_POINTER, GDK_TYPE_PIXBUF,
-                             G_TYPE_STRING, G_TYPE_INT, G_TYPE_BOOLEAN);
+  /* gtk list store columns: 0 - sell value, 1 - sprite,
+  2 - description, 3 - upkeep, 4 - is redundant, 5 - tooltip */
+  store = gtk_list_store_new(6, G_TYPE_POINTER, GDK_TYPE_PIXBUF,
+                             G_TYPE_STRING, G_TYPE_INT, G_TYPE_BOOLEAN,
+                             G_TYPE_STRING);
 
   view = gtk_tree_view_new_with_model(GTK_TREE_MODEL(store));
   gtk_widget_set_hexpand(view, TRUE);
@@ -859,9 +864,6 @@ static GtkWidget *create_citydlg_improvement_list(struct city_dialog *pdialog,
   gtk_tree_view_set_headers_visible(GTK_TREE_VIEW(view), FALSE);
   gtk_widget_set_name(view, "small_font");
   pdialog->overview.improvement_list = view;
-
-  gtk_widget_set_tooltip_markup(view,
-                                _("Press <b>ENTER</b> or double-click to sell an improvement."));
 
   rend = gtk_cell_renderer_pixbuf_new();
   gtk_tree_view_insert_column_with_attributes(GTK_TREE_VIEW(view), -1, NULL,
@@ -875,6 +877,8 @@ static GtkWidget *create_citydlg_improvement_list(struct city_dialog *pdialog,
   gtk_tree_view_insert_column_with_attributes(GTK_TREE_VIEW(view), -1, NULL,
                                               rend, "text", 3,
                                               "strikethrough", 4, NULL);
+
+  gtk_tree_view_set_tooltip_column(GTK_TREE_VIEW(view), 5);
 
   g_signal_connect(view, "row_activated", G_CALLBACK(impr_callback),
                    pdialog);
@@ -1499,9 +1503,11 @@ static void create_and_append_settings_page(struct city_dialog *pdialog)
 static struct city_dialog *create_city_dialog(struct city *pcity)
 {
   struct city_dialog *pdialog;
-
   GtkWidget *close_command;
   GtkWidget *vbox, *hbox, *cbox, *ebox;
+  int citizen_bar_width;
+  int citizen_bar_height;
+  GdkPixbuf *pb;
 
   if (!city_dialogs_have_been_initialised) {
     initialize_city_dialogs();
@@ -1534,7 +1540,7 @@ static struct city_dialog *create_city_dialog(struct city *pcity)
   gtk_widget_realize(pdialog->shell);
 
   /* keep the icon of the executable on Windows (see PR#36491) */
-#ifndef WIN32_NATIVE
+#ifndef FREECIV_MSWINDOWS
   {
     GdkPixbuf *pixbuf = sprite_get_pixbuf(get_icon_sprite(tileset, ICON_CITYDLG));
 
@@ -1542,7 +1548,7 @@ static struct city_dialog *create_city_dialog(struct city *pcity)
     gtk_window_set_icon(GTK_WINDOW(pdialog->shell), pixbuf);
     g_object_unref(pixbuf);
   }
-#endif /* WIN32_NATIVE */
+#endif /* FREECIV_MSWINDOWS */
 
   /* Restore size of the city dialog. */
   gtk_window_set_default_size(GTK_WINDOW(pdialog->shell),
@@ -1563,18 +1569,24 @@ static struct city_dialog *create_city_dialog(struct city *pcity)
   ebox = gtk_event_box_new();
   gtk_event_box_set_visible_window(GTK_EVENT_BOX(ebox), FALSE);
   gtk_container_add(GTK_CONTAINER(cbox), ebox);
-  pdialog->citizen_pixmap =
-      gtk_pixcomm_new(tileset_small_sprite_width(tileset)
-                      * NUM_CITIZENS_SHOWN,
-                      tileset_small_sprite_height(tileset));
-  gtk_widget_add_events(pdialog->citizen_pixmap, GDK_BUTTON_PRESS_MASK);
-  gtk_widget_set_margin_left(pdialog->citizen_pixmap, 2);
-  gtk_widget_set_margin_right(pdialog->citizen_pixmap, 2);
-  gtk_widget_set_margin_top(pdialog->citizen_pixmap, 2);
-  gtk_widget_set_margin_bottom(pdialog->citizen_pixmap, 2);
-  gtk_widget_set_halign(pdialog->citizen_pixmap, GTK_ALIGN_START);
-  gtk_widget_set_valign(pdialog->citizen_pixmap, GTK_ALIGN_CENTER);
-  gtk_container_add(GTK_CONTAINER(ebox), pdialog->citizen_pixmap);
+
+  citizen_bar_width = tileset_small_sprite_width(tileset) * NUM_CITIZENS_SHOWN;
+  citizen_bar_height = tileset_small_sprite_height(tileset);
+
+  pdialog->citizen_surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32,
+                                                        citizen_bar_width, citizen_bar_height);
+  pb = surface_get_pixbuf(pdialog->citizen_surface, citizen_bar_width, citizen_bar_height);
+  pdialog->citizen_images = gtk_image_new_from_pixbuf(pb);
+  g_object_unref(pb);
+
+  gtk_widget_add_events(pdialog->citizen_images, GDK_BUTTON_PRESS_MASK);
+  gtk_widget_set_margin_left(pdialog->citizen_images, 2);
+  gtk_widget_set_margin_right(pdialog->citizen_images, 2);
+  gtk_widget_set_margin_top(pdialog->citizen_images, 2);
+  gtk_widget_set_margin_bottom(pdialog->citizen_images, 2);
+  gtk_widget_set_halign(pdialog->citizen_images, GTK_ALIGN_START);
+  gtk_widget_set_valign(pdialog->citizen_images, GTK_ALIGN_CENTER);
+  gtk_container_add(GTK_CONTAINER(ebox), pdialog->citizen_images);
   g_signal_connect(G_OBJECT(ebox), "button-press-event",
                    G_CALLBACK(citizens_callback), pdialog);
 
@@ -1716,11 +1728,13 @@ static void city_dialog_update_title(struct city_dialog *pdialog)
 static void city_dialog_update_citizens(struct city_dialog *pdialog)
 {
   enum citizen_category categories[MAX_CITY_SIZE];
-  int i, width, size;
-  int start_margin;
-  int end_margin;
+  int i, width;
+  int citizen_bar_width;
+  int citizen_bar_height;
   struct city *pcity = pdialog->pcity;
   int num_citizens = get_city_citizen_types(pcity, FEELING_FINAL, categories);
+  GdkPixbuf *pb;
+  cairo_t *cr;
 
   /* If there is not enough space we stack the icons. We draw from left to */
   /* right. width is how far we go to the right for each drawn pixmap. The */
@@ -1737,19 +1751,24 @@ static void city_dialog_update_citizens(struct city_dialog *pdialog)
   pdialog->cwidth = width;
 
   /* overview page */
-  start_margin = gtk_widget_get_margin_left(pdialog->citizen_pixmap);
-  end_margin = gtk_widget_get_margin_right(pdialog->citizen_pixmap);
-  gtk_pixcomm_clear(GTK_PIXCOMM(pdialog->citizen_pixmap));
+  citizen_bar_width = (num_citizens - 1) * width + tileset_small_sprite_width(tileset) + 2;
+  citizen_bar_height = tileset_small_sprite_height(tileset);
 
-  size = (num_citizens - 1) * width + tileset_small_sprite_width(tileset) +
-    2 * (start_margin + end_margin);
-  gtk_widget_set_size_request(GTK_WIDGET(pdialog->citizen_pixmap), size, -1);
+  cr = cairo_create(pdialog->citizen_surface);
 
   for (i = 0; i < num_citizens; i++) {
-    gtk_pixcomm_copyto(GTK_PIXCOMM(pdialog->citizen_pixmap),
-                       get_citizen_sprite(tileset, categories[i], i, pcity),
-                       i * width, 0);
+    cairo_set_source_surface(cr,
+                             get_citizen_sprite(tileset, categories[i], i, pcity)->surface,
+                             i * width, 0);
+    cairo_rectangle(cr, i * width, 0, width, citizen_bar_height);
+    cairo_fill(cr);
   }
+
+  cairo_destroy(cr);
+
+  pb = surface_get_pixbuf(pdialog->citizen_surface, citizen_bar_width, citizen_bar_height);
+  gtk_image_set_from_pixbuf(GTK_IMAGE(pdialog->citizen_images), pb);
+  g_object_unref(pb);
 }
 
 /****************************************************************
@@ -2020,6 +2039,11 @@ static void city_dialog_update_improvement_list(struct city_dialog *pdialog)
   GtkTreeModel *model;
   GtkListStore *store;
 
+  const char *tooltip_sellable = _("Press <b>ENTER</b> or double-click to "
+                                   "sell an improvement.");
+  const char *tooltip_great_wonder = _("Great Wonder - cannot be sold.");
+  const char *tooltip_small_wonder = _("Small Wonder - cannot be sold.");
+
   model =
     gtk_tree_view_get_model(GTK_TREE_VIEW(pdialog->overview.improvement_list));
   store = GTK_LIST_STORE(model);
@@ -2045,12 +2069,19 @@ static void city_dialog_update_improvement_list(struct city_dialog *pdialog)
     pix = sprite_get_pixbuf(sprite);
     gtk_list_store_append(store, &it);
     gtk_list_store_set(store, &it,
-		       0, target.value.building,
-		       1, pix,
-	2, items[item].descr,
-	3, upkeep,
-        4, is_improvement_redundant(pdialog->pcity, target.value.building),
-	-1);
+                       0, target.value.building,
+                       1, pix,
+                       2, items[item].descr,
+                       3, upkeep,
+                       4,
+                       is_improvement_redundant(pdialog->pcity,
+                                                target.value.building),
+                       5,
+                       is_great_wonder(target.value.building) ?
+                         tooltip_great_wonder :
+                           (is_small_wonder(target.value.building) ?
+                             tooltip_small_wonder : tooltip_sellable),
+                       -1);
     g_object_unref(G_OBJECT(pix));
 
     total += upkeep;
@@ -2093,7 +2124,6 @@ static void city_dialog_update_supported_units(struct city_dialog *pdialog)
     for (i = m; i < n; i++) {
       GtkWidget *cmd, *pix;
       struct unit_node node;
-      int unit_height = tileset_unit_with_upkeep_height(tileset);
 
       cmd = gtk_button_new();
       node.cmd = cmd;
@@ -2102,8 +2132,9 @@ static void city_dialog_update_supported_units(struct city_dialog *pdialog)
       gtk_widget_add_events(cmd,
 	  GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK);
 
-      pix = gtk_pixcomm_new(tileset_full_tile_width(tileset), unit_height);
+      pix = gtk_image_new();
       node.pix = pix;
+      node.height = tileset_unit_with_upkeep_height(tileset);
 
       gtk_container_add(GTK_CONTAINER(cmd), pix);
 
@@ -2125,9 +2156,8 @@ static void city_dialog_update_supported_units(struct city_dialog *pdialog)
       cmd = pnode->cmd;
       pix = pnode->pix;
 
-      put_unit_gpixmap(punit, GTK_PIXCOMM(pix));
-      put_unit_gpixmap_city_overlays(punit, GTK_PIXCOMM(pix), punit->upkeep,
-                                     happy_cost);
+      put_unit_image_city_overlays(punit, GTK_IMAGE(pix), pnode->height,
+                                   punit->upkeep, happy_cost);
 
       g_signal_handlers_disconnect_matched(cmd,
 	  G_SIGNAL_MATCH_FUNC,
@@ -2207,9 +2237,9 @@ static void city_dialog_update_present_units(struct city_dialog *pdialog)
       gtk_widget_add_events(cmd,
 	  GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK);
 
-      pix = gtk_pixcomm_new(tileset_full_tile_width(tileset),
-                            tileset_full_tile_height(tileset));
+      pix = gtk_image_new();
       node.pix = pix;
+      node.height = tileset_full_tile_height(tileset);
 
       gtk_container_add(GTK_CONTAINER(cmd), pix);
 
@@ -2230,7 +2260,7 @@ static void city_dialog_update_present_units(struct city_dialog *pdialog)
       cmd = pnode->cmd;
       pix = pnode->pix;
 
-      put_unit_gpixmap(punit, GTK_PIXCOMM(pix));
+      put_unit_image(punit, GTK_IMAGE(pix));
 
       g_signal_handlers_disconnect_matched(cmd,
 	  G_SIGNAL_MATCH_FUNC,
@@ -3342,6 +3372,7 @@ static void city_destroy_callback(GtkWidget *w, gpointer data)
   }
 
   cairo_surface_destroy(pdialog->map_canvas_store_unscaled);
+  cairo_surface_destroy(pdialog->citizen_surface);
 
   free(pdialog);
 
@@ -3454,4 +3485,11 @@ static void switch_city_callback(GtkWidget *w, gpointer data)
   if (pdialog->happiness.map_canvas.sw) {
     city_dialog_map_recenter(pdialog->happiness.map_canvas.sw);
   }
+}
+
+/**************************************************************************
+  City is about to disappear from client
+**************************************************************************/
+void city_to_disappear(struct city *pcity)
+{
 }

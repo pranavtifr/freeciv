@@ -2729,7 +2729,7 @@ static int style_callback(struct widget *pWidget)
 {
   if (PRESSED_EVENT(Main.event)) {
     struct NAT *pSetup = (struct NAT *)(pNationDlg->pEndWidgetList->data.ptr);
-    struct widget *pGUI = get_widget_pointer_form_main_list(MAX_ID - 1000 -
+    struct widget *pGUI = get_widget_pointer_from_main_list(MAX_ID - 1000 -
                                                             pSetup->nation_style);
 
     set_wstate(pGUI, FC_WS_NORMAL);
@@ -2937,7 +2937,7 @@ static void change_nation_label(void)
 }
 
 /**************************************************************************
-  Selectes a leader and the appropriate sex. Updates the gui elements
+  Selects a leader and the appropriate sex. Updates the gui elements
   and the selected_* variables.
 **************************************************************************/
 static void select_random_leader(Nation_type_id nation)
@@ -3009,7 +3009,7 @@ void popup_races_dialog(struct player *pplayer)
   int len = 0;
   int w = adj_size(10), h = adj_size(10);
   SDL_Surface *pTmp_Surf, *pTmp_Surf_zoomed = NULL;
-  SDL_Surface *pMain_Bg, *pText_Name, *pText_Class;
+  SDL_Surface *pMain_Bg, *pText_Name;
   SDL_Rect dst;
   float zoom;
   struct NAT *pSetup;
@@ -3059,7 +3059,6 @@ void popup_races_dialog(struct player *pplayer)
   pstr->bgcol = (SDL_Color) {0, 0, 0, 0};
 
   /* fill list */
-  pText_Class = NULL;
 
   nations_iterate(pNation) {
     if (!is_nation_playable(pNation) || !is_nation_pickable(pNation)) {
@@ -3074,15 +3073,9 @@ void popup_races_dialog(struct player *pplayer)
     change_ptsize_utf8(pstr, adj_font(12));
     pText_Name = create_text_surf_smaller_than_w(pstr, pTmp_Surf->w - adj_size(4));
 
-    if (pNation->legend && *(pNation->legend) != '\0') {
-      copy_chars_to_utf8_str(pstr, pNation->legend);
-      change_ptsize_utf8(pstr, adj_font(10));
-      pText_Class = create_text_surf_smaller_than_w(pstr, pTmp_Surf->w - adj_size(4));
-    }
-
     dst.x = (pTmp_Surf->w - pTmp_Surf_zoomed->w) / 2;
     len = pTmp_Surf_zoomed->h +
-      adj_size(10) + pText_Name->h + (pText_Class ? pText_Class->h : 0);
+      adj_size(10) + pText_Name->h;
     dst.y = (pTmp_Surf->h - len) / 2;
     alphablit(pTmp_Surf_zoomed, NULL, pTmp_Surf, &dst, 255);
     dst.y += (pTmp_Surf_zoomed->h + adj_size(10));
@@ -3091,12 +3084,6 @@ void popup_races_dialog(struct player *pplayer)
     alphablit(pText_Name, NULL, pTmp_Surf, &dst, 255);
     dst.y += pText_Name->h;
     FREESURFACE(pText_Name);
-
-    if (pText_Class) {
-      dst.x = (pTmp_Surf->w - pText_Class->w) / 2;
-      alphablit(pText_Class, NULL, pTmp_Surf, &dst, 255);
-      FREESURFACE(pText_Class);
-    }
 
     pWidget = create_icon2(pTmp_Surf, pWindow->dst,
                            (WF_RESTORE_BACKGROUND|WF_FREE_THEME));
@@ -3485,7 +3472,7 @@ void races_toggles_set_sensitive(void)
                 (!is_nation_pickable(nation) || nation->player),
                 nation_rule_name(nation));
 
-      pNat = get_widget_pointer_form_main_list(MAX_ID - nation_index(nation));
+      pNat = get_widget_pointer_from_main_list(MAX_ID - nation_index(nation));
       set_wstate(pNat, FC_WS_DISABLED);
 
       if (nation_index(nation) == pSetup->nation) {
@@ -3497,7 +3484,7 @@ void races_toggles_set_sensitive(void)
   if (change) {
     do {
       pSetup->nation = fc_rand(get_playable_nation_count());
-      pNat = get_widget_pointer_form_main_list(MAX_ID - pSetup->nation);
+      pNat = get_widget_pointer_from_main_list(MAX_ID - pSetup->nation);
     } while (get_wstate(pNat) == FC_WS_DISABLED);
 
     if (get_wstate(pSetup->pName_Edit) == FC_WS_PRESSED) {

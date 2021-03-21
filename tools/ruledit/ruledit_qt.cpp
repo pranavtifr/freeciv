@@ -112,7 +112,7 @@ void ruledit_gui::setup(QWidget *central_in)
   if (rev_ver == NULL) {
     fc_snprintf(verbuf, sizeof(verbuf), "%s%s", word_version(), VERSION_STRING);
   } else {
-    fc_snprintf(verbuf, sizeof(verbuf), _("%s%s\ncommit: %s"),
+    fc_snprintf(verbuf, sizeof(verbuf), R__("%s%s\ncommit: %s"),
                 word_version(), VERSION_STRING, rev_ver);
   }
 
@@ -179,7 +179,10 @@ void ruledit_gui::setup(QWidget *central_in)
 **************************************************************************/
 void ruledit_gui::launch_now()
 {
-  sz_strlcpy(game.server.rulesetdir, ruleset_select->text().toUtf8().data());
+  QByteArray rn_bytes;
+
+  rn_bytes = ruleset_select->text().toUtf8();
+  sz_strlcpy(game.server.rulesetdir, rn_bytes.data());
 
   if (load_rulesets(NULL, FALSE, TRUE)) {
     display_msg(R__("Ruleset loaded"));

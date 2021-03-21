@@ -59,6 +59,7 @@ struct canvas *qtg_canvas_create(int width, int height);
 void qtg_canvas_free(struct canvas *store);
 void qtg_canvas_set_zoom(struct canvas *store, float zoom);
 bool qtg_has_zoom_support();
+void qtg_canvas_mapview_init(struct canvas *store);
 void qtg_canvas_copy(struct canvas *dest, struct canvas *src,
 		     int src_x, int src_y, int dest_x, int dest_y, int width,
 		     int height);
@@ -123,10 +124,12 @@ void qtg_editgui_tileset_changed();
 void qtg_editgui_popdown_all();
 
 void qtg_update_timeout_label();
+void qtg_start_turn();
 void qtg_real_city_dialog_popup(struct city *pcity);
 void qtg_real_city_dialog_refresh(struct city *pcity);
 void qtg_popdown_city_dialog(struct city *pcity);
 void qtg_popdown_all_city_dialogs();
+void qtg_city_to_disappear(struct city *pcity);
 bool qtg_handmade_scenario_warning();
 void qtg_refresh_unit_city_dialogs(struct unit *punit);
 bool qtg_city_dialog_is_open(struct city *pcity);

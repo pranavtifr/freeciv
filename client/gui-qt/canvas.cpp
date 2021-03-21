@@ -1,4 +1,4 @@
-/**********************************************************************
+/***********************************************************************
  Freeciv - Copyright (C) 1996-2005 - Freeciv Development Team
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 // Qt
 #include <QFontMetrics>
 #include <QPainter>
+#include <QPainterPath>
 
 // qt-client
 #include "canvas.h"
@@ -62,6 +63,13 @@ void qtg_canvas_set_zoom(struct canvas *store, float zoom)
 bool qtg_has_zoom_support()
 {
   return FALSE;
+}
+
+/****************************************************************************
+  Initialize canvas as mapview.
+****************************************************************************/
+void qtg_canvas_mapview_init(struct canvas *store)
+{
 }
 
 /****************************************************************************
@@ -309,7 +317,7 @@ void qtg_get_text_size(int *width, int *height,
   afont = get_font(font);
   fm = new QFontMetrics(*afont);
   if (width) {
-    *width = fm->width(QString::fromUtf8(text));
+    *width = fm->horizontalAdvance(QString::fromUtf8(text));
   }
 
   if (height) {

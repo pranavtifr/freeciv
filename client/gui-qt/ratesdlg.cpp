@@ -17,10 +17,10 @@
 
 // Qt
 #include <QApplication>
-#include <QDesktopWidget>
 #include <QGroupBox>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QScreen>
 #include <QVBoxLayout>
 
 // common
@@ -128,8 +128,7 @@ void tax_rates_dialog::slot_apply_button_pressed()
   Multipler rates dialog constructor
   Inheriting from qfc_dialog will cause crash in Qt5.2
 **************************************************************************/
-multipler_rates_dialog::multipler_rates_dialog(QWidget *parent,
-                                               Qt::WindowFlags f)
+multipler_rates_dialog::multipler_rates_dialog(QWidget *parent)
   : QDialog(parent)
 {
   QGroupBox *group_box;
@@ -250,7 +249,7 @@ void popup_rates_dialog(void)
   QRect rect;
 
   p = QCursor::pos();
-  rect = QApplication::desktop()->availableGeometry();
+  rect = QApplication::primaryScreen()->availableGeometry();
   tax_rates_dialog *trd = new tax_rates_dialog(gui()->central_wdg);
   p.setY(p.y() - trd->height() / 2);
   if (p.y() < 50) {

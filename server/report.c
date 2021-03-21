@@ -118,6 +118,9 @@ static const char *historian_name[]={
     N_("Pan Ku")
 };
 
+/* With terminating '\0' */
+#define MAX_SCORELOG_LINE_LEN (119 + 1)
+
 static const char scorelog_magic[] = "#FREECIV SCORELOG2 ";
 
 struct player_score_entry {
@@ -392,10 +395,10 @@ void report_top_five_cities(struct conn_list *dest)
 
     wonders = nr_wonders(size[i].city);
     if (wonders == 0) {
-      cat_snprintf(buffer, sizeof(buffer), _("with no wonders\n"));
+      cat_snprintf(buffer, sizeof(buffer), _("with no Great Wonders\n"));
     } else {
       cat_snprintf(buffer, sizeof(buffer),
-		   PL_("with %d wonder\n", "with %d wonders\n", wonders),
+		   PL_("with %d Great Wonder\n", "with %d Great Wonders\n", wonders),
 		   wonders);}
   }
   page_conn(dest, _("Traveler's Report:"),
@@ -557,7 +560,7 @@ static int get_pollution(const struct player *pplayer)
 ****************************************************************************/
 static int get_mil_service(const struct player *pplayer)
 {
-  return (pplayer->score.units * 5000) / (10 + civ_population(pplayer));
+  return (pplayer->score.units * 5000) / (10 + pplayer->score.population);
 }
 
 /****************************************************************************
@@ -1171,7 +1174,13 @@ static bool scan_score_log(char *id)
 {
   int line_nr, turn, plr_no, spaces;
   struct plrdata_slot *plrdata;
-  char plr_name[MAX_LEN_NAME], line[120], *ptr;
+  char line[MAX_SCORELOG_LINE_LEN], *ptr;
+
+  /* Must be big enough to contain any string there might be in "addplayer" line
+   * to read.
+   * Could have even strlen("addplayer 0 0 "), but maintenance not worth
+   * saving couple of bytes. */
+  char plr_name[MAX(MAX_LEN_NAME, MAX_SCORELOG_LINE_LEN - strlen("addplayer "))];
 
   fc_assert_ret_val(score_log != NULL, FALSE);
   fc_assert_ret_val(score_log->fp != NULL, FALSE);
@@ -1230,6 +1239,8 @@ static bool scan_score_log(char *id)
     }
 
     if (strncmp(line, "addplayer ", strlen("addplayer ")) == 0) {
+      /* If you change this, be sure to adjust plr_name buffer size to
+       * match longest possible string read. */
       if (3 != sscanf(line + strlen("addplayer "), "%d %d %s",
                       &turn, &plr_no, plr_name)) {
         log_error("[%s:%d] Bad line (addplayer)!",
@@ -1424,7 +1435,7 @@ void log_civ_score_now(void)
   }
 
   if (!score_log->fp) {
-    if (game.info.year == GAME_START_YEAR) {
+    if (game.info.year32 == GAME_START_YEAR) {
       oper = SL_CREATE;
     } else {
       score_log->fp = fc_fopen(game.server.scorefile, "r");
@@ -1476,7 +1487,7 @@ void log_civ_score_now(void)
   }
 
   if (game.info.turn > score_log->last_turn) {
-    fprintf(score_log->fp, "turn %d %d %s\n", game.info.turn, game.info.year,
+    fprintf(score_log->fp, "turn %d %d %s\n", game.info.turn, game.info.year32,
             calendar_text());
     score_log->last_turn = game.info.turn;
   }

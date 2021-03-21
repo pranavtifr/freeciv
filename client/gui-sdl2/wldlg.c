@@ -268,14 +268,14 @@ static void add_target_to_worklist(struct widget *pTarget)
 
     setup_vertical_widgets_position(1,
       pEditor->pEndWidgetList->area.x + adj_size(2),
-      get_widget_pointer_form_main_list(ID_WINDOW)->area.y + adj_size(152) +
+      get_widget_pointer_from_main_list(ID_WINDOW)->area.y + adj_size(152) +
         pEditor->pWork->pScroll->pUp_Left_Button->size.h + 1,
       adj_size(126), 0, pEditor->pWork->pBeginWidgetList,
       pEditor->pWork->pEndWidgetList);
 
     setup_vertical_scrollbar_area(pEditor->pWork->pScroll,
         pEditor->pEndWidgetList->area.x + adj_size(2),
-        get_widget_pointer_form_main_list(ID_WINDOW)->area.y + adj_size(152),
+        get_widget_pointer_from_main_list(ID_WINDOW)->area.y + adj_size(152),
         adj_size(225), FALSE);
 
     show_scrollbar(pEditor->pWork->pScroll);
@@ -497,13 +497,13 @@ static void remove_item_from_worklist(struct widget *pItem)
 
     setup_vertical_widgets_position(1,
       pEditor->pEndWidgetList->area.x + adj_size(2),
-      get_widget_pointer_form_main_list(ID_WINDOW)->area.y + adj_size(152),
+      get_widget_pointer_from_main_list(ID_WINDOW)->area.y + adj_size(152),
 	adj_size(126), 0, pEditor->pWork->pBeginWidgetList,
       pEditor->pWork->pEndWidgetList);
 #if 0
     setup_vertical_scrollbar_area(pEditor->pWork->pScroll,
 	pEditor->pEndWidgetList->area.x + adj_size(2),
-    	get_widget_pointer_form_main_list(ID_WINDOW)->area.y + adj_size(152),
+        get_widget_pointer_from_main_list(ID_WINDOW)->area.y + adj_size(152),
     	adj_size(225), FALSE);*/
 #endif /* 0 */
     hide_scrollbar(pEditor->pWork->pScroll);
@@ -840,11 +840,11 @@ static void set_global_worklist(struct widget *pWidget)
   left mouse button -> add global worklist to current city list
   right mouse button -> clear city worklist and copy here global worklist.
 
-  There are problems with impv./wonder tagets becouse those can't be doubled
-  on worklist and adding/seting can give you situation that global worklist
+  There are problems with imprv./wonder targets because those can't be doubled
+  on worklist and adding/setting can give you situation that global worklist
   have imprv./wonder entry that exist on city worklist or in building state.
-  I don't make such check here and allow this "functionality" becouse doubled
-  impov./wonder entry are removed from city worklist during "commit" phase.
+  I don't make such check here and allow this "functionality" because doubled
+  imprv./wonder entry are removed from city worklist during "commit" phase.
 **************************************************************************/
 static int global_worklist_callback(struct widget *pWidget)
 {
@@ -913,12 +913,13 @@ static SDL_Surface *get_progress_icon(int stock, int cost, int *progress)
     *progress = 100;
   }
 
-  pIcon = create_bcgnd_surf(current_theme->Edit, 0, adj_size(120), adj_size(30));
+  pIcon = create_bcgnd_surf(current_theme->Edit, FC_WS_NORMAL, adj_size(120),
+                            adj_size(30));
 
   if (width) {
     SDL_Rect dst = {2,1,0,0};
-    SDL_Surface *pBuf = create_bcgnd_surf(current_theme->Button, 3, width,
-                                          adj_size(28));
+    SDL_Surface *pBuf = create_bcgnd_surf(current_theme->Button, FC_WS_DISABLED,
+                                          width, adj_size(28));
 
     alphablit(pBuf, NULL, pIcon, &dst, 255);
     FREESURFACE(pBuf);
@@ -1040,7 +1041,7 @@ static void refresh_worklist_count_label(void)
 
 /**************************************************************************
   Global/City worklist editor.
-  if pCity == NULL then fucnction take pWorklist as global worklist.
+  if pCity == NULL then function takes pWorklist as global worklist.
   pWorklist must be not NULL.
 **************************************************************************/
 void popup_worklist_editor(struct city *pCity, struct global_worklist *gwl)
@@ -1056,7 +1057,7 @@ void popup_worklist_editor(struct city *pCity, struct global_worklist *gwl)
   SDL_Surface *pIcon;
   SDL_Rect dst;
   char cbuf[128];
-  struct unit_type *pUnit = NULL;
+  struct unit_type *punittype = NULL;
   char *state = NULL;
   bool advanced_tech;
   bool can_build, can_eventually_build;
@@ -1457,7 +1458,7 @@ void popup_worklist_editor(struct city *pCity, struct global_worklist *gwl)
             } else {
               fc_snprintf(cbuf, sizeof(cbuf), _("%d/%d %s\n%s"),
                           pCity->shield_stock, impr_build_shield_cost(pImprove),
-                          PL_("shield","shields",
+                          PL_("shield", "shields",
                               impr_build_shield_cost(pImprove)), _("never"));
             }	  
           } else {
@@ -1465,13 +1466,13 @@ void popup_worklist_editor(struct city *pCity, struct global_worklist *gwl)
               fc_snprintf(cbuf, sizeof(cbuf), _("(%s)\n%d/%d %s\n%d %s"),
                           state, pCity->shield_stock,
                           impr_build_shield_cost(pImprove),
-                          PL_("shield","shields",
+                          PL_("shield", "shields",
                               impr_build_shield_cost(pImprove)),
                           turns, PL_("turn", "turns", turns));
             } else {
               fc_snprintf(cbuf, sizeof(cbuf), _("%d/%d %s\n%d %s"),
                           pCity->shield_stock, impr_build_shield_cost(pImprove),
-                          PL_("shield","shields",
+                          PL_("shield", "shields",
                               impr_build_shield_cost(pImprove)),
                           turns, PL_("turn", "turns", turns));
             }
@@ -1490,12 +1491,12 @@ void popup_worklist_editor(struct city *pCity, struct global_worklist *gwl)
           if (state) {
             fc_snprintf(cbuf, sizeof(cbuf), _("(%s)\n%d %s"),
                         state, impr_build_shield_cost(pImprove),
-                        PL_("shield","shields",
+                        PL_("shield", "shields",
                             impr_build_shield_cost(pImprove)));
           } else {
             fc_snprintf(cbuf, sizeof(cbuf), _("%d %s"),
                         impr_build_shield_cost(pImprove),
-                        PL_("shield","shields",
+                        PL_("shield", "shields",
                             impr_build_shield_cost(pImprove)));
           }
         } else {
@@ -1565,7 +1566,7 @@ void popup_worklist_editor(struct city *pCity, struct global_worklist *gwl)
     if ((advanced_tech && can_eventually_build)
         || (!advanced_tech && can_build)) {
 
-      pUnit = un;
+      punittype = un;
 
       pIcon = crop_rect_from_surface(pMain, NULL);
 
@@ -1583,29 +1584,29 @@ void popup_worklist_editor(struct city *pCity, struct global_worklist *gwl)
         if (turns == FC_INFINITY) {
           fc_snprintf(cbuf, sizeof(cbuf),
                       _("(%d/%d/%s)\n%d/%d %s\nnever"),
-                      pUnit->attack_strength,
-                      pUnit->defense_strength,
-                      move_points_text(pUnit->move_rate, TRUE),
+                      punittype->attack_strength,
+                      punittype->defense_strength,
+                      move_points_text(punittype->move_rate, TRUE),
                       pCity->shield_stock, utype_build_shield_cost(un),
-                      PL_("shield","shields", utype_build_shield_cost(un)));
+                      PL_("shield", "shields", utype_build_shield_cost(un)));
         } else {
           fc_snprintf(cbuf, sizeof(cbuf),
                       _("(%d/%d/%s)\n%d/%d %s\n%d %s"),
-                      pUnit->attack_strength,
-                      pUnit->defense_strength,
-                      move_points_text(pUnit->move_rate, TRUE),
+                      punittype->attack_strength,
+                      punittype->defense_strength,
+                      move_points_text(punittype->move_rate, TRUE),
                       pCity->shield_stock, utype_build_shield_cost(un), 
-                      PL_("shield","shields", utype_build_shield_cost(un)),
+                      PL_("shield", "shields", utype_build_shield_cost(un)),
                       turns, PL_("turn", "turns", turns));
         }
       } else {
         fc_snprintf(cbuf, sizeof(cbuf),
                     _("(%d/%d/%s)\n%d %s"),
-                    pUnit->attack_strength,
-                    pUnit->defense_strength,
-                    move_points_text(pUnit->move_rate, TRUE),
+                    punittype->attack_strength,
+                    punittype->defense_strength,
+                    move_points_text(punittype->move_rate, TRUE),
                     utype_build_shield_cost(un),
-                    PL_("shield","shields", utype_build_shield_cost(un)));
+                    PL_("shield", "shields", utype_build_shield_cost(un)));
       }
 
       copy_chars_to_utf8_str(pstr, cbuf);

@@ -3017,6 +3017,11 @@ static void player_load_vision(struct player *plr, int plrno,
 	if (NULL != pcity) {
 	  update_dumb_city(plr, pcity);
 	}
+      } else if (!game.server.foggedborders && map_is_known(ptile, plr)) {
+        /* Non fogged borders aren't loaded. See hrm Bug #879084 */
+        struct player_tile *plrtile = map_get_player_tile(ptile, plr);
+
+        plrtile->owner = tile_owner(ptile);
       }
     } whole_map_iterate_end;
   } else {
@@ -3421,13 +3426,14 @@ static void game_load_internal(struct section_file *file)
       }
     }
 
-    if (!secfile_lookup_int(file, &game.info.year, "game.year")) {
+    if (!secfile_lookup_int(file, &game.info.year32, "game.year")) {
       log_error("%s", secfile_error());
       return save_exit();
     }
+    game.info.year16 = game.info.year32;
 
-    game.info.year_0_hack   = secfile_lookup_bool_default(file, FALSE,
-                                                          "game.year_0_hack");
+    game.info.year_0_hack = secfile_lookup_bool_default(file, FALSE,
+                                                        "game.year_0_hack");
 
     if (has_capability("turn", savefile_options)) {
       game.info.turn = secfile_lookup_int_default(file, 0, "game.turn");

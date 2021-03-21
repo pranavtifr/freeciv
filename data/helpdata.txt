@@ -2310,7 +2310,7 @@ _("\
 If you find any bugs, then please send us a bug report.  This is \
 best done by visiting the Freeciv Bug Tracking System, at:\
 "), "\
-  https://www.hostedredmine.com/projects/freeciv\
+  https://osdn.net/projects/freeciv/ticket/\
 ", _("\
 Please quote the above version information. \
 For more information about submitting bug reports see the file BUGS \
@@ -2335,7 +2335,6 @@ project's mailing lists:\
   Present administrators: \
 "), "\
     Marko Lindqvist      - cazfi74@gmail.com\n\
-    R. Daniel Markstedt  - markstedt@gmail.com\n\
     Christian Prochaska  - cp.ml.freeciv.dev@googlemail.com\n\
     Jacob Nevins         - 0jacobnk.fca@chiark.greenend.org.uk\
 ", _("\

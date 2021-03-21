@@ -22,7 +22,6 @@
  * it can install SDL's own. */
 #ifdef SDL2_PLAIN_INCLUDE
 #include <SDL.h>
-#include <SDL_mixer.h>
 #elif AUDIO_SDL1_2
 /* SDL */
 #include <SDL/SDL.h>
@@ -333,6 +332,10 @@ void qtg_real_focus_units_changed(void)
   if (gui()->unit_sel != nullptr && gui()->unit_sel->isVisible()) {
     gui()->unit_sel->update_units();
   }
+
+  if (gui()->gtd != nullptr && gui()->gtd->isVisible()) {
+    gui()->gtd->update_dlg();
+  }
 }
 
 /****************************************************************************
@@ -560,12 +563,8 @@ void popup_quit_dialog()
 **************************************************************************/
 void qtg_insert_client_build_info(char *outbuf, size_t outlen)
 {
-  /* There's separate entry about Qt in help menu.
-   * Should we enable this regardless? As then to place to find such information
-   * would be standard over clients. */
+  /* There's also an separate entry about Qt in help menu. */
 
-  /*
   cat_snprintf(outbuf, outlen, _("\nBuilt against Qt %s, using %s"),
                QT_VERSION_STR, qVersion());
-  */
 }

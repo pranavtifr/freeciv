@@ -1056,7 +1056,8 @@ static bool timeout_callback(int value, struct connection *caller,
                              char *reject_msg, size_t reject_msg_len)
 {
   /* Disallow low timeout values for non-hack connections. */
-  if (caller && caller->access_level < ALLOW_HACK && value < 30) {
+  if (caller && caller->access_level < ALLOW_HACK
+      && value < 30 && value != 0) {
     settings_snprintf(reject_msg, reject_msg_len,
                       _("You are not allowed to set timeout values less "
                         "than 30 seconds."));
@@ -1093,7 +1094,8 @@ static bool first_timeout_callback(int value, struct connection *caller,
                                    char *reject_msg, size_t reject_msg_len)
 {
   /* Disallow low timeout values for non-hack connections. */
-  if (caller && caller->access_level < ALLOW_HACK && value < 30) {
+  if (caller && caller->access_level < ALLOW_HACK
+      && value < 30 && value != 0) {
     settings_snprintf(reject_msg, reject_msg_len,
                       _("You are not allowed to set timeout values less "
                         "than 30 seconds."));
@@ -2322,7 +2324,11 @@ static struct setting settings[] = {
           SSET_TO_CLIENT,
           N_("Base chance for diplomats and spies to succeed"),
           N_("The base chance of a spy returning from a successful mission and "
-             "the base chance of success for diplomats and spies."),
+             "the base chance of success for diplomats and spies for most "
+             "aggressive mission types. Not all the mission types use diplchance "
+             "as a base chance; City Poisoning, Unit Bribing, and Unit Sabotaging "
+             "do not. Non-aggressive missions typically have no base chance "
+             "at all, but always success."),
           NULL, NULL, NULL,
           GAME_MIN_DIPLCHANCE, GAME_MAX_DIPLCHANCE, GAME_DEFAULT_DIPLCHANCE)
 
@@ -2661,7 +2667,7 @@ static struct setting settings[] = {
              "means there is no timeout. In servers compiled with "
              "debugging, a timeout of -1 sets the autogame test mode. "
              "Only connections with hack level access may set the "
-             "timeout to lower than 30 seconds. Use this with the "
+             "timeout to fewer than 30 seconds. Use this with the "
              "command \"timeoutincrease\" to have a dynamic timer. "
              "The first turn is treated as a special case and is controlled "
              "by the 'first_timeout' setting."),

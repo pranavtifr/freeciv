@@ -304,8 +304,9 @@ adv_want dai_effect_value(struct player *pplayer, struct government *gov,
   case EFT_ENABLE_SPACE:
     if (victory_enabled(VC_SPACERACE)) {
       v += 10;
-      if (ai->dipl.production_leader == pplayer) {
-	v += 150;
+      if (ai->dipl.production_leader == pplayer
+          || ai->dipl.tech_leader == pplayer) {
+        v += 150;
       }
     }
     break;
@@ -383,10 +384,11 @@ adv_want dai_effect_value(struct player *pplayer, struct government *gov,
   case EFT_SS_COMPONENT:
   case EFT_SS_MODULE:
     if (victory_enabled(VC_SPACERACE)
-	/* If someone has started building spaceship already or
-	 * we have chance to win a spacerace */
-	&& (ai->dipl.spacerace_leader
-	    || ai->dipl.production_leader == pplayer)) {
+        /* If someone has started building spaceship already or
+         * we have chance to win a spacerace */
+        && (ai->dipl.spacerace_leader
+            || ai->dipl.production_leader == pplayer
+            || ai->dipl.tech_leader == pplayer)) {
       v += 140;
     }
     break;
@@ -464,14 +466,14 @@ adv_want dai_effect_value(struct player *pplayer, struct government *gov,
     if (capital || affects_land_capable_units) {
       Continent_id place = tile_continent(pcity->tile);
 
-      if ((place && ai->threats.continent[place])
+      if ((place > 0 && ai->threats.continent[place])
           || capital
           || (ai->threats.invasions
               /* FIXME: This ignores riverboats on some rulesets.
                         We should analyze rulesets when game starts
                         and have relevant checks here. */
               && is_terrain_class_near_tile(pcity->tile, TC_OCEAN))) {
-        if (place && ai->threats.continent[place]) {
+        if (place > 0 && ai->threats.continent[place]) {
           v += amount;
         } else {
           v += amount / (!ai->threats.igwall ? (15 - capital * 5) : 15);
@@ -633,7 +635,7 @@ static bool have_better_government(const struct player *pplayer,
   Does the AI expect to ever be able to meet this requirement.
 
   The return value of this function is unreliable for requirements
-  that are are currently active: the caller should only call this
+  that are currently active: the caller should only call this
   function to determine if a currently *inactive* requirement could
   be met in the future.
 

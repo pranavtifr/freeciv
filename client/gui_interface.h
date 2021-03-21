@@ -62,6 +62,7 @@ struct gui_funcs {
   void (*canvas_free)(struct canvas *store);
   void (*canvas_set_zoom)(struct canvas *store, float zoom);
   bool (*has_zoom_support)(void);
+  void (*canvas_mapview_init)(struct canvas *store);
   void (*canvas_copy)(struct canvas *dest, struct canvas *src,
                       int src_x, int src_y, int dest_x, int dest_y, int width,
                       int height);
@@ -126,10 +127,12 @@ struct gui_funcs {
                             int attacker_hp, int defender_hp,
                             bool make_winner_veteran);
   void (*update_timeout_label)(void);
+  void (*start_turn)(void);
   void (*real_city_dialog_popup)(struct city *pcity);
   void (*real_city_dialog_refresh)(struct city *pcity);
   void (*popdown_city_dialog)(struct city *pcity);
   void (*popdown_all_city_dialogs)(void);
+  void (*city_to_disappear)(struct city *pcity);
   bool (*handmade_scenario_warning)(void);
   void (*refresh_unit_city_dialogs)(struct unit *punit);
   bool (*city_dialog_is_open)(struct city *pcity);

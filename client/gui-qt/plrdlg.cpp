@@ -49,7 +49,7 @@ static QRect check_box_rect(const QStyleOptionViewItem
 }
 
 /**************************************************************************
-  Slighty increase deafult cell height
+  Slighty increase default cell height
 **************************************************************************/
 QSize plr_item_delegate::sizeHint(const QStyleOptionViewItem &option,
                                   const QModelIndex &index) const
@@ -61,7 +61,7 @@ QSize plr_item_delegate::sizeHint(const QStyleOptionViewItem &option,
 }
 
 /**************************************************************************
-  Paint evenet for custom player item delegation
+  Paint event for custom player item delegation
 **************************************************************************/
 void plr_item_delegate::paint(QPainter *painter, const QStyleOptionViewItem
                               &option, const QModelIndex &index) const
@@ -448,11 +448,11 @@ void plr_widget::nation_selected(const QItemSelection &sl,
     res = _("(Unknown)");
     break;
   case A_UNSET:
-      if (player_has_embassy(me, pplayer)) {
-        res = _("(none)");
-      } else {
-        res = _("(Unknown)");
-      }
+    if (global_observer || player_has_embassy(me, pplayer)) {
+      res = _("(none)");
+    } else {
+      res = _("(Unknown)");
+    }
     break;
   default:
     res = QString(research_advance_name_translation(research,

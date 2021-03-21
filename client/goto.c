@@ -346,11 +346,18 @@ static bool update_last_part(struct goto_map *goto_map,
       }
 
       p->path = old_path;
-      p->end_tile = pf_path_last_position(old_path)->tile;
-      p->end_moves_left = pf_path_last_position(old_path)->moves_left;
-      p->end_fuel_left = pf_path_last_position(old_path)->fuel_left;
+
+      if (p->path != NULL) {
+        const struct pf_position *pos = pf_path_last_position(old_path);
+
+        p->end_tile = pos->tile;
+        p->end_moves_left = pos->moves_left;
+        p->end_fuel_left = pos->fuel_left;
+      }
+
       pf_path_destroy(new_path);
       reset_last_part(goto_map);
+
       return FALSE;
     }
 
@@ -1552,6 +1559,11 @@ static bool order_recursive_roads(struct tile *ptile, struct extra_type *pextra,
 
   if (!is_extra_caused_by(pextra, EC_ROAD)) {
     return FALSE;
+  }
+
+  if (tile_has_extra(ptile, pextra)) {
+    /* No need to build what is already there. */
+    return TRUE;
   }
 
   extra_deps_iterate(&(pextra->reqs), pdep) {

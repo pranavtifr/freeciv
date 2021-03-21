@@ -764,7 +764,7 @@ void init_new_game(void)
   sulen = strlen(game.server.start_units);
 
   /* Loop over all players, creating their initial units... */
-  players_iterate(pplayer) {
+  shuffled_players_iterate(pplayer) {
     struct tile *ptile;
 
     /* We have to initialise the advisor and ai here as we could make contact
@@ -793,10 +793,10 @@ void init_new_game(void)
     } else {
       placed_units[player_index(pplayer)] = 0;
     }
-  } players_iterate_end;
+  } shuffled_players_iterate_end;
 
   /* Place all other units. */
-  players_iterate(pplayer) {
+  shuffled_players_iterate(pplayer) {
     int i;
     struct tile *const ptile = player_startpos[player_index(pplayer)];
     struct nation_type *nation = nation_of_player(pplayer);
@@ -825,7 +825,7 @@ void init_new_game(void)
       }
       i++;
     }
-  } players_iterate_end;
+  } shuffled_players_iterate_end;
 
   players_iterate(pplayer) {
     /* Close the active phase for advisor and ai for all players; it was
@@ -850,7 +850,8 @@ void send_year_to_clients(void)
     pplayer->nturns_idle++;
   } players_iterate_end;
 
-  apacket.year = game.info.year;
+  apacket.year32 = game.info.year32;
+  apacket.year16 = game.info.year32;
   apacket.fragments = game.info.fragment_count;
   apacket.turn = game.info.turn;
   lsend_packet_new_year(game.est_connections, &apacket);
@@ -1033,7 +1034,12 @@ static const char *get_challenge_fullname(struct connection *pc)
 {
   static char fullname[MAX_LEN_PATH];
 
+#ifdef HAIKU
+  interpret_tilde(fullname, sizeof(fullname), "~" DIR_SEPARATOR "config" DIR_SEPARATOR "settings"
+                     DIR_SEPARATOR "freeciv" DIR_SEPARATOR);
+#else  /* HAIKU */
   interpret_tilde(fullname, sizeof(fullname), "~" DIR_SEPARATOR ".freeciv" DIR_SEPARATOR);
+#endif  /* HAIKU */
   sz_strlcat(fullname, get_challenge_filename(pc));
 
   return fullname;

@@ -210,6 +210,14 @@ bool has_zoom_support(void)
 }
 
 /**************************************************************************
+  Call canvas_mapview_init callback
+**************************************************************************/
+void canvas_mapview_init(struct canvas *store)
+{
+  funcs.canvas_mapview_init(store);
+}
+
+/**************************************************************************
   Call canvas_copy callback
 **************************************************************************/
 void canvas_copy(struct canvas *dest, struct canvas *src,
@@ -511,6 +519,14 @@ void update_timeout_label(void)
   funcs.update_timeout_label();
 }
 
+/****************************************************************************
+  Call start_turn callback
+****************************************************************************/
+void start_turn(void)
+{
+  funcs.start_turn();
+}
+
 /**************************************************************************
   Call real_city_dialog_popup callback
 **************************************************************************/
@@ -541,6 +557,14 @@ void popdown_city_dialog(struct city *pcity)
 void popdown_all_city_dialogs(void)
 {
   funcs.popdown_all_city_dialogs();
+}
+
+/**************************************************************************
+  Call city_to_disappear callback
+**************************************************************************/
+void city_to_disappear(struct city *pcity)
+{
+  funcs.city_to_disappear(pcity);
 }
 
 /**************************************************************************

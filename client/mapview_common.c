@@ -3578,12 +3578,14 @@ bool map_canvas_resized(int width, int height)
     }
     mapview.store = canvas_create(full_width, full_height);
     canvas_set_zoom(mapview.store, map_zoom);
+    canvas_mapview_init(mapview.store);
     canvas_put_rectangle(mapview.store,
                          get_color(tileset, COLOR_MAPVIEW_UNKNOWN),
                          0, 0, full_width / map_zoom, full_height / map_zoom);
 
     mapview.tmp_store = canvas_create(full_width, full_height);
     canvas_set_zoom(mapview.tmp_store, map_zoom);
+    canvas_mapview_init(mapview.tmp_store);
   }
 
   if (map_exists() && can_client_change_view()) {
@@ -3962,9 +3964,11 @@ void link_mark_restore(enum text_link_type type, int id)
 
 /********************************************************************** 
   Are the topology and tileset compatible?
+  Tileset topology written to tset_topo, if not NULL.
 ***********************************************************************/
 enum topo_comp_lvl tileset_map_topo_compatible(int topology_id,
-                                               struct tileset *tset)
+                                               struct tileset *tset,
+                                               int *tset_topo)
 {
   int tileset_topology;
 
@@ -3978,6 +3982,10 @@ enum topo_comp_lvl tileset_map_topo_compatible(int topology_id,
     tileset_topology = TF_ISO;
   } else {
     tileset_topology = 0;
+  }
+
+  if (tset_topo != NULL) {
+    *tset_topo = tileset_topology;
   }
 
   if (tileset_topology & TF_HEX) {
@@ -3999,6 +4007,24 @@ enum topo_comp_lvl tileset_map_topo_compatible(int topology_id,
   }
 
   return TOPO_COMPATIBLE;
+}
+
+/**********************************************************************
+  Return string describing topology id.
+***********************************************************************/
+const char *describe_topology(int topo)
+{
+  if (topo & TF_ISO) {
+    if (topo & TF_HEX) {
+      return _("ISO|Hex");
+    }
+    return _("ISO");
+  }
+  if (topo & TF_HEX) {
+    return _("Hex");
+  }
+
+  return _("Overhead");
 }
 
 /********************************************************************** 

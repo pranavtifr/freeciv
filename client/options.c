@@ -1833,7 +1833,7 @@ static struct client_option client_options[] = {
                      "on the previous run. You should enable "
                      "saving options on exit too, so that the automatic "
                      "updates to the options get saved too."),
-                  COC_NETWORK, GUI_STUB, NULL, NULL),
+                  COC_NETWORK, GUI_STUB, FALSE, NULL),
   GEN_STR_OPTION(default_server_host,
                  N_("Server"),
                  N_("This is the default server hostname that will be used "
@@ -5153,9 +5153,16 @@ static const char *get_current_option_file_name(void)
       log_error(_("Cannot find your home directory"));
       return NULL;
     }
+#ifdef HAIKU
+    fc_snprintf(name_buffer, sizeof(name_buffer),
+                "%s" DIR_SEPARATOR "config" DIR_SEPARATOR "settings" DIR_SEPARATOR
+                "freeciv" DIR_SEPARATOR NEW_OPTION_FILE_NAME,
+                name, MAJOR_NEW_OPTION_FILE_NAME, MINOR_NEW_OPTION_FILE_NAME);
+#else  /* HAIKU */
     fc_snprintf(name_buffer, sizeof(name_buffer),
                 "%s" DIR_SEPARATOR ".freeciv" DIR_SEPARATOR NEW_OPTION_FILE_NAME,
                 name, MAJOR_NEW_OPTION_FILE_NAME, MINOR_NEW_OPTION_FILE_NAME);
+#endif  /* HAIKU */
 #endif /* OPTION_FILE_NAME */
   }
   log_verbose("settings file is %s", name_buffer);
@@ -5205,8 +5212,14 @@ static const char *get_last_option_file_name(bool *allow_digital_boolean)
               ? minor >= FIRST_MINOR_NEW_OPTION_FILE_NAME 
               : minor >= 0); minor--) {
         fc_snprintf(name_buffer, sizeof(name_buffer),
+#ifdef HAIKU
+                    "%s" DIR_SEPARATOR "config" DIR_SEPARATOR "settings" DIR_SEPARATOR
+                    "freeciv" DIR_SEPARATOR NEW_OPTION_FILE_NAME,
+                    name, major, minor);
+#else /* HAIKU */
                     "%s" DIR_SEPARATOR ".freeciv" DIR_SEPARATOR NEW_OPTION_FILE_NAME,
                     name, major, minor);
+#endif /* HAIKU */
         if (0 == fc_stat(name_buffer, &buf)) {
           if (MAJOR_NEW_OPTION_FILE_NAME != major
               || MINOR_NEW_OPTION_FILE_NAME != minor) {
@@ -6180,7 +6193,7 @@ static void font_changed_callback(struct option *poption)
 ****************************************************************************/
 static void mapimg_changed_callback(struct option *poption)
 {
-  if (!mapimg_client_define()) {
+  if (mapimg_initialised() && !mapimg_client_define()) {
     bool success;
 
     log_normal("Error setting the value for %s (%s). Restoring the default "

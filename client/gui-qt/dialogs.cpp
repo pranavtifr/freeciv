@@ -24,6 +24,7 @@
 #include <QMessageBox>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QPainterPath>
 #include <QRadioButton>
 #include <QRect>
 #include <QSignalMapper>
@@ -98,7 +99,7 @@ static void pillage_something(QVariant data1, QVariant data2);
 static void action_entry(choice_dialog *cd,
                          gen_action act,
                          const struct act_prob *act_probs,
-                         QString custom,
+                         const char *custom,
                          QVariant data1, QVariant data2);
 
 
@@ -655,6 +656,7 @@ void races_dialog::leader_selected(int index)
 ***************************************************************************/
 void races_dialog::ok_pressed()
 {
+  QByteArray ln_bytes;
 
   if (selected_nation == -1) {
     return;
@@ -680,9 +682,10 @@ void races_dialog::ok_pressed()
                          _("Nation has been chosen by other player"));
     return;
   }
+  ln_bytes = leader_name->currentText().toUtf8();
   dsend_packet_nation_select_req(&client.conn, player_number(tplayer),
                                  selected_nation, selected_sex,
-                                 leader_name->currentText().toUtf8().data(),
+                                 ln_bytes.data(),
                                  selected_style);
   close();
   deleteLater();
@@ -728,6 +731,9 @@ void notify_dialog::restart()
 {
   QString s, q;
   int i;
+  QByteArray capt_bytes;
+  QByteArray hl_bytes;
+  QByteArray qb_bytes;
 
   for (i = 0; i < qlist.size(); ++i) {
     s = qlist.at(i);
@@ -736,9 +742,12 @@ void notify_dialog::restart()
       q = q + QChar('\n');
     }
   }
-  popup_notify_dialog(qcaption.toLocal8Bit().data(),
-                      qheadline.toLocal8Bit().data(),
-                      q.toLocal8Bit().data());
+  capt_bytes = qcaption.toLocal8Bit();
+  hl_bytes = qheadline.toLocal8Bit();
+  qb_bytes = q.toLocal8Bit();
+  popup_notify_dialog(capt_bytes.data(),
+                      hl_bytes.data(),
+                      qb_bytes.data());
   close();
   destroy();
 }
@@ -756,7 +765,7 @@ void notify_dialog::calc_size(int &x, int &y)
   str_list << qcaption << qheadline;
 
   for (i = 0; i < str_list.count(); i++) {
-    x = qMax(x, fm.width(str_list.at(i)));
+    x = qMax(x, fm.horizontalAdvance(str_list.at(i)));
     y = y + 3 + fm.height();
   }
   x = x + 15;
@@ -1665,24 +1674,6 @@ void action_selection_no_longer_in_progress_gui_specific(int actor_id)
   is_more_user_input_needed = FALSE;
 }
 
-/***************************************************************************
-  Returns a string with how many shields remains of the current production.
-  This is useful as custom information on the help build wonder button.
-***************************************************************************/
-static QString city_prod_remaining(struct city *target_city)
-{
-  if (target_city == nullptr
-      || city_owner(target_city) != client.conn.playing) {
-    /* Can't give remaining production for a foreign or non existing
-     * city. */
-    return "";
-  }
-
-  return QString(_("%1 remaining")).arg(
-        impr_build_shield_cost(target_city->production.value.building)
-        - target_city->shield_stock);
-}
-
 /**************************************************************************
   Popup a dialog that allows the player to select what action a unit
   should take.
@@ -1811,8 +1802,10 @@ void popup_action_selection(struct unit *actor_unit,
       action_entry(cd,
                    (enum gen_action)act,
                    act_probs,
-                   act == ACTION_HELP_WONDER ?
-                     city_prod_remaining(target_city) : "",
+                   get_act_sel_action_custom_text(action_by_number(act),
+                                                  act_probs[act],
+                                                  actor_unit,
+                                                  target_city),
                    qv1, qv2);
     }
   } action_iterate_end;
@@ -1828,7 +1821,10 @@ void popup_action_selection(struct unit *actor_unit,
       action_entry(cd,
                    (enum gen_action)act,
                    act_probs,
-                   "",
+                   get_act_sel_action_custom_text(action_by_number(act),
+                                                  act_probs[act],
+                                                  actor_unit,
+                                                  target_city),
                    qv1, qv2);
     }
   } action_iterate_end;
@@ -1871,7 +1867,7 @@ void popup_action_selection(struct unit *actor_unit,
 static void action_entry(choice_dialog *cd,
                          gen_action act,
                          const struct act_prob *act_probs,
-                         QString custom,
+                         const char *custom,
                          QVariant data1, QVariant data2)
 {
   QString title;
@@ -1900,9 +1896,7 @@ static void action_entry(choice_dialog *cd,
 
   title = QString(action_prepare_ui_name(act, "&",
                                          act_probs[act],
-                                         custom != "" ?
-                                             custom.toUtf8().data() :
-                                             NULL));
+                                         custom));
 
   tool_tip = QString(action_get_tool_tip(act, act_probs[act]));
 
@@ -1915,7 +1909,7 @@ static void action_entry(choice_dialog *cd,
 static void action_entry_update(Choice_dialog_button *button,
                                 gen_action act,
                                 const struct act_prob *act_probs,
-                                QString custom,
+                                const char *custom,
                                 QVariant data1, QVariant data2)
 {
   QString title;
@@ -1929,9 +1923,7 @@ static void action_entry_update(Choice_dialog_button *button,
   /* The probability may have changed. */
   title = QString(action_prepare_ui_name(act, "&",
                                          act_probs[act],
-                                         custom != "" ?
-                                             custom.toUtf8().data() :
-                                             NULL));
+                                         custom));
 
   tool_tip = QString(action_get_tool_tip(act, act_probs[act]));
 
@@ -2615,6 +2607,7 @@ void popdown_all_game_dialogs(void)
   int i;
   QList <choice_dialog *> cd_list;
   QList <notify_dialog *> nd_list;
+  goto_dialog *gtd;
 
   QApplication::alert(gui()->central_wdg);
   cd_list = gui()->game_tab_widget->findChildren <choice_dialog *>();
@@ -2635,6 +2628,12 @@ void popdown_all_game_dialogs(void)
   popdown_city_report();
   popdown_endgame_report();
   gui()->popdown_unit_sel();
+
+  gtd = gui()->gtd;
+
+  if (gtd != nullptr) {
+    gtd->close_dlg();
+  }
 }
 
 /**************************************************************************
@@ -2739,20 +2738,17 @@ void action_selection_refresh(struct unit *actor_unit,
   }
 
   action_iterate(act) {
-    QString custom;
+    const char *custom;
 
     if (action_id_get_actor_kind(act) != AAK_UNIT) {
       /* Not relevant. */
       continue;
     }
 
-    if (action_prob_possible(act_probs[act])
-        && act == ACTION_HELP_WONDER) {
-      /* Add information about how far along the wonder is. */
-      custom = city_prod_remaining(target_city);
-    } else {
-      custom = "";
-    }
+    custom = get_act_sel_action_custom_text(action_by_number(act),
+                                            act_probs[act],
+                                            actor_unit,
+                                            target_city);
 
     /* Put the target id in qv2. */
     switch (action_id_get_target_kind(act)) {
@@ -2933,7 +2929,6 @@ units_select::~units_select()
 void units_select::create_pixmap()
 {
   int a;
-  int rate, f;
   int x, y, i;
   QFontMetrics fm(info_font);
   QImage cropped_img;
@@ -2945,7 +2940,6 @@ void units_select::create_pixmap()
   QPixmap *pixp;
   QPixmap *tmp_pix;
   QRect crop;
-  QString str;
   struct canvas *unit_pixmap;
   struct unit *punit;
   float isosize;
@@ -3030,22 +3024,29 @@ void units_select::create_pixmap()
     }
     punit = unit_list.at(i);
     Q_ASSERT(punit != NULL);
-    rate = unit_type_get(punit)->move_rate;
-    f = ((punit->fuel) - 1);
+
     if (i == highligh_num) {
       p.drawPixmap(x, y, *h_pix);
       p.drawPixmap(x, y, *tmp_pix);
     } else {
       p.drawPixmap(x, y, *tmp_pix);
     }
-    str = QString(move_points_text(punit->moves_left, false));
-    if (utype_fuel(unit_type_get(punit))) {
-      str = str + "(" + QString(move_points_text((rate * f)
-            + punit->moves_left, false)) + ")";
+
+    if (client_is_global_observer() || unit_owner(punit) == client.conn.playing) {
+      int rate, f;
+      QString str;
+
+      rate = unit_type_get(punit)->move_rate;
+      f = ((punit->fuel) - 1);
+      str = QString(move_points_text(punit->moves_left, false));
+      if (utype_fuel(unit_type_get(punit))) {
+        str = str + "(" + QString(move_points_text((rate * f)
+                                                   + punit->moves_left, false)) + ")";
+      }
+      /* TRANS: MP = Movement points */
+      str = QString(_("MP:")) + str;
+      p.drawText(x, y + item_size.height() - 4, str);
     }
-    /* TRANS: MP = Movement points */
-    str = QString(_("MP:")) + str;
-    p.drawText(x, y + item_size.height() - 4, str);
 
     x = x + item_size.width();
     delete tmp_pix;
@@ -3156,7 +3157,8 @@ void units_select::paint(QPainter *painter, QPaintEvent *event)
       info_font.setPointSize(i);
     }
     QFontMetrics qfm(info_font);
-    if (10 + qfm.width(str2) < width()) {
+
+    if (10 + qfm.horizontalAdvance(str2) < width()) {
       break;
     }
   }

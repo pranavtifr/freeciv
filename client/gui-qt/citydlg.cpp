@@ -27,9 +27,11 @@
 #include <QPainter>
 #include <QRadioButton>
 #include <QRect>
+#include <QScreen>
 #include <QScrollArea>
 #include <QScrollBar>
 #include <QSplitter>
+#include <QToolTip>
 #include <QVBoxLayout>
 #include <QWheelEvent>
 #include <QWidgetAction>
@@ -275,19 +277,19 @@ void progress_bar::paintEvent(QPaintEvent *event)
     p.setCompositionMode(QPainter::CompositionMode_ColorDodge);
     QFontMetrics fm(*sfont);
 
-    if (fm.width(s1) > rx.width()) {
+    if (fm.horizontalAdvance(s1) > rx.width()) {
       s1 = fm.elidedText(s1, Qt::ElideRight, rx.width());
     }
 
-    i = rx.width() - fm.width(s1) + pix_width;
+    i = rx.width() - fm.horizontalAdvance(s1) + pix_width;
     i = qMax(0, i);
     p.drawText(i / 2, j / 3 + f_size, s1);
 
-    if (fm.width(s2) > rx.width()) {
+    if (fm.horizontalAdvance(s2) > rx.width()) {
       s2 = fm.elidedText(s2, Qt::ElideRight, rx.width());
     }
 
-    i = rx.width() - fm.width(s2) + pix_width;
+    i = rx.width() - fm.horizontalAdvance(s2) + pix_width;
     i = qMax(0, i);
 
     p.drawText(i / 2, height() - j / 3, s2);
@@ -299,11 +301,11 @@ void progress_bar::paintEvent(QPaintEvent *event)
     p.setCompositionMode(QPainter::CompositionMode_ColorDodge);
     QFontMetrics fm(*sfont);
 
-    if (fm.width(s) > rx.width()) {
+    if (fm.horizontalAdvance(s) > rx.width()) {
       s = fm.elidedText(s, Qt::ElideRight, rx.width());
     }
 
-    i = rx.width() - fm.width(s) + pix_width;
+    i = rx.width() - fm.horizontalAdvance(s) + pix_width;
     i = qMax(0, i);
     p.drawText(i / 2, j / 2 + f_size, s);
   }
@@ -1412,6 +1414,11 @@ void city_map::context_menu(QPoint point)
     } else if (act == &con_fallout) {
       task.activity = ACTIVITY_FALLOUT;
       target = TRUE;
+    } else if (act == &con_clear) {
+      task.activity = ACTIVITY_LAST;
+    } else {
+      /* Closed dialog without selecting any activity entry. */
+      return;
     }
 
     task.want = 100;
@@ -1448,8 +1455,6 @@ void city_map::context_menu(QPoint point)
 ****************************************************************************/
 city_dialog::city_dialog(QWidget *parent): qfc_dialog(parent)
 {
-  int info_nr;
-  int iter;
   QFont f = QApplication::font();
   QFont *small_font;
   QFontMetrics fm(f);
@@ -1503,26 +1508,24 @@ city_dialog::city_dialog(QWidget *parent): qfc_dialog(parent)
 
   /* Fill info_wdg with labels */
   info_grid_layout = new QGridLayout(parent);
-  info_list << _("Food:") << _("Prod:") << _("Trade:") << _("Gold:")
-            << _("Luxury:") << _("Science:") << _("Granary:")
-            << _("Change in:") << _("Corruption:") << _("Waste:")
-            << _("Culture:") << _("Pollution:") << _("Plague risk:")
-            << _("Airlift:");
-  info_nr = info_list.count();
+
   info_wdg->setFont(*small_font);
   info_grid_layout->setSpacing(0);
   info_grid_layout->setMargin(0);
 
-  for (iter = 0; iter < info_nr; iter++) {
-    ql = new QLabel(info_list[iter], info_wdg);
+  for (enum city_info info_field = city_info_begin();
+      info_field != city_info_end();
+      info_field = city_info_next(info_field)) {
+
+    ql = new QLabel(_(city_info_name(info_field)), info_wdg);
     ql->setFont(*small_font);
     ql->setProperty(fonts::city_label, "true");
-    info_grid_layout->addWidget(ql, iter, 0);
-    qlt[iter] = new QLabel(info_wdg);
-    qlt[iter]->setFont(*small_font);
-    qlt[iter]->setProperty(fonts::city_label, "true");
-    info_grid_layout->addWidget(qlt[iter], iter, 1);
-    info_grid_layout->setRowStretch(iter, 0);
+    info_grid_layout->addWidget(ql, info_field, 0);
+    qlt[info_field] = new QLabel(info_wdg);
+    qlt[info_field]->setFont(*small_font);
+    qlt[info_field]->setProperty(fonts::city_label, "true");
+    info_grid_layout->addWidget(qlt[info_field], info_field, 1);
+    info_grid_layout->setRowStretch(info_field, 0);
   }
 
   info_wdg->setLayout(info_grid_layout);
@@ -2187,7 +2190,7 @@ void city_dialog::showEvent(QShowEvent *event)
     central_left_splitter->restoreState(gui()->qt_settings.city_splitter2);
     central_splitter->restoreState(gui()->qt_settings.city_splitter3);
   } else {
-    QRect rect = QApplication::desktop()->screenGeometry();
+    QRect rect = QApplication::primaryScreen()->geometry();
     resize((rect.width() * 4) / 5, (rect.height() * 5) / 6);
   }
 }
@@ -2255,7 +2258,10 @@ void city_dialog::city_rename()
   ask.set_text_title_definput(_("What should we rename the city to?"),
                               _("Rename City"), city_name_get(pcity));
   if (ask.exec() == QDialog::Accepted) {
-    ::city_rename(pcity, ask.input_edit.text().toLocal8Bit().data());
+    QByteArray ask_bytes;
+
+    ask_bytes = ask.input_edit.text().toLocal8Bit();
+    ::city_rename(pcity, ask_bytes.data());
   }
 }
 
@@ -2298,7 +2304,10 @@ void city_dialog::save_cma()
                               _("Name new preset"),
                               _("new preset"));
   if (ask.exec() == QDialog::Accepted) {
-    text = ask.input_edit.text().toLocal8Bit().data();
+    QByteArray ask_bytes;
+
+    ask_bytes = ask.input_edit.text().toLocal8Bit();
+    text = ask_bytes.data();
     if (!text.isEmpty()) {
       param.allow_disorder = false;
       param.allow_specialists = true;
@@ -2310,7 +2319,8 @@ void city_dialog::save_cma()
         param.factor[i] = slider_tab[2 * i + 1]->value();
       }
 
-      cmafec_preset_add(text.toLocal8Bit().data(), &param);
+      ask_bytes = text.toLocal8Bit();
+      cmafec_preset_add(ask_bytes.data(), &param);
       update_cma_tab();
     }
   }
@@ -2949,99 +2959,102 @@ void city_dialog::update_info_label()
 {
   int illness = 0;
   char buffer[512];
-  char buf[2 * NUM_INFO_FIELDS][512];
+  char buf_info[NUM_INFO_FIELDS][512];
+  char buf_tooltip[NUM_INFO_FIELDS][512];
   int granaryturns;
 
-  enum { FOOD = 0, SHIELD = 2, TRADE = 4, GOLD = 6, LUXURY = 8, SCIENCE = 10,
-         GRANARY = 12, GROWTH = 14, CORRUPTION = 16, WASTE = 18,
-         CULTURE = 20, POLLUTION = 22, ILLNESS = 24, AIRLIFT = 26,
-       };
+  for (int i = 0; i < NUM_INFO_FIELDS; i++) {
+    buf_info[i][0] = '\0';
+    buf_tooltip[i][0] = '\0';
+  }
 
   /* fill the buffers with the necessary info */
-  fc_snprintf(buf[FOOD], sizeof(buf[FOOD]), "%3d (%+4d)",
+  fc_snprintf(buf_info[INFO_CITIZEN], sizeof(buf_info[INFO_CITIZEN]),
+              "%3d (%4d)", pcity->size, city_specialists(pcity));
+  fc_snprintf(buf_info[INFO_FOOD], sizeof(buf_info[INFO_FOOD]), "%3d (%+4d)",
               pcity->prod[O_FOOD], pcity->surplus[O_FOOD]);
-  fc_snprintf(buf[SHIELD], sizeof(buf[SHIELD]), "%3d (%+4d)",
-              pcity->prod[O_SHIELD] + pcity->waste[O_SHIELD],
+  fc_snprintf(buf_info[INFO_SHIELD], sizeof(buf_info[INFO_SHIELD]),
+              "%3d (%+4d)", pcity->prod[O_SHIELD] + pcity->waste[O_SHIELD],
               pcity->surplus[O_SHIELD]);
-  fc_snprintf(buf[TRADE], sizeof(buf[TRADE]), "%3d (%+4d)",
+  fc_snprintf(buf_info[INFO_TRADE], sizeof(buf_info[INFO_TRADE]), "%3d (%+4d)",
               pcity->surplus[O_TRADE] + pcity->waste[O_TRADE],
               pcity->surplus[O_TRADE]);
-  fc_snprintf(buf[GOLD], sizeof(buf[GOLD]), "%3d (%+4d)",
+  fc_snprintf(buf_info[INFO_GOLD], sizeof(buf_info[INFO_GOLD]), "%3d (%+4d)",
               pcity->prod[O_GOLD], pcity->surplus[O_GOLD]);
-  fc_snprintf(buf[LUXURY], sizeof(buf[LUXURY]), "%3d",
+  fc_snprintf(buf_info[INFO_LUXURY], sizeof(buf_info[INFO_LUXURY]), "%3d",
               pcity->prod[O_LUXURY]);
-  fc_snprintf(buf[SCIENCE], sizeof(buf[SCIENCE]), "%3d",
+  fc_snprintf(buf_info[INFO_SCIENCE], sizeof(buf_info[INFO_SCIENCE]), "%3d",
               pcity->prod[O_SCIENCE]);
-  fc_snprintf(buf[GRANARY], sizeof(buf[GRANARY]), "%4d/%-4d",
-              pcity->food_stock, city_granary_size(city_size_get(pcity)));
+  fc_snprintf(buf_info[INFO_GRANARY], sizeof(buf_info[INFO_GRANARY]),
+              "%4d/%-4d", pcity->food_stock,
+              city_granary_size(city_size_get(pcity)));
 
-  get_city_dialog_output_text(pcity, O_FOOD, buf[FOOD + 1],
-                              sizeof(buf[FOOD + 1]));
-  get_city_dialog_output_text(pcity, O_SHIELD, buf[SHIELD + 1],
-                              sizeof(buf[SHIELD + 1]));
-  get_city_dialog_output_text(pcity, O_TRADE, buf[TRADE + 1],
-                              sizeof(buf[TRADE + 1]));
-  get_city_dialog_output_text(pcity, O_GOLD, buf[GOLD + 1],
-                              sizeof(buf[GOLD + 1]));
-  get_city_dialog_output_text(pcity, O_SCIENCE, buf[SCIENCE + 1],
-                              sizeof(buf[SCIENCE + 1]));
-  get_city_dialog_output_text(pcity, O_LUXURY, buf[LUXURY + 1],
-                              sizeof(buf[LUXURY + 1]));
-  get_city_dialog_culture_text(pcity, buf[CULTURE + 1],
-                               sizeof(buf[CULTURE + 1]));
-  get_city_dialog_pollution_text(pcity, buf[POLLUTION + 1],
-                                 sizeof(buf[POLLUTION + 1]));
-  get_city_dialog_illness_text(pcity, buf[ILLNESS + 1],
-                               sizeof(buf[ILLNESS + 1]));
+  get_city_dialog_output_text(pcity, O_FOOD, buf_tooltip[INFO_FOOD],
+                              sizeof(buf_tooltip[INFO_FOOD]));
+  get_city_dialog_output_text(pcity, O_SHIELD, buf_tooltip[INFO_SHIELD],
+                              sizeof(buf_tooltip[INFO_SHIELD]));
+  get_city_dialog_output_text(pcity, O_TRADE, buf_tooltip[INFO_TRADE],
+                              sizeof(buf_tooltip[INFO_TRADE]));
+  get_city_dialog_output_text(pcity, O_GOLD, buf_tooltip[INFO_GOLD],
+                              sizeof(buf_tooltip[INFO_GOLD]));
+  get_city_dialog_output_text(pcity, O_SCIENCE, buf_tooltip[INFO_SCIENCE],
+                              sizeof(buf_tooltip[INFO_SCIENCE]));
+  get_city_dialog_output_text(pcity, O_LUXURY, buf_tooltip[INFO_LUXURY],
+                              sizeof(buf_tooltip[INFO_LUXURY]));
+  get_city_dialog_culture_text(pcity, buf_tooltip[INFO_CULTURE],
+                               sizeof(buf_tooltip[INFO_CULTURE]));
+  get_city_dialog_pollution_text(pcity, buf_tooltip[INFO_POLLUTION],
+                                 sizeof(buf_tooltip[INFO_POLLUTION]));
+  get_city_dialog_illness_text(pcity, buf_tooltip[INFO_ILLNESS],
+                               sizeof(buf_tooltip[INFO_ILLNESS]));
 
   granaryturns = city_turns_to_grow(pcity);
 
   if (granaryturns == 0) {
     /* TRANS: city growth is blocked.  Keep short. */
-    fc_snprintf(buf[GROWTH], sizeof(buf[GROWTH]), _("blocked"));
+    fc_snprintf(buf_info[INFO_GROWTH], sizeof(buf_info[INFO_GROWTH]), _("blocked"));
   } else if (granaryturns == FC_INFINITY) {
     /* TRANS: city is not growing.  Keep short. */
-    fc_snprintf(buf[GROWTH], sizeof(buf[GROWTH]), _("never"));
+    fc_snprintf(buf_info[INFO_GROWTH], sizeof(buf_info[INFO_GROWTH]), _("never"));
   } else {
     /* A negative value means we'll have famine in that many turns.
        But that's handled down below. */
     /* TRANS: city growth turns.  Keep short. */
-    fc_snprintf(buf[GROWTH], sizeof(buf[GROWTH]),
+    fc_snprintf(buf_info[INFO_GROWTH], sizeof(buf_info[INFO_GROWTH]),
                 PL_("%d turn", "%d turns", abs(granaryturns)),
                 abs(granaryturns));
   }
 
-  fc_snprintf(buf[CORRUPTION], sizeof(buf[CORRUPTION]), "%4d",
-              pcity->waste[O_TRADE]);
-  fc_snprintf(buf[WASTE], sizeof(buf[WASTE]), "%4d", pcity->waste[O_SHIELD]);
-  fc_snprintf(buf[CULTURE], sizeof(buf[CULTURE]), "%4d",
+  fc_snprintf(buf_info[INFO_CORRUPTION], sizeof(buf_info[INFO_CORRUPTION]),
+              "%4d", pcity->waste[O_TRADE]);
+  fc_snprintf(buf_info[INFO_WASTE], sizeof(buf_info[INFO_WASTE]), "%4d",
+              pcity->waste[O_SHIELD]);
+  fc_snprintf(buf_info[INFO_CULTURE], sizeof(buf_info[INFO_CULTURE]), "%4d",
               pcity->client.culture);
-  fc_snprintf(buf[POLLUTION], sizeof(buf[POLLUTION]), "%4d",
+  fc_snprintf(buf_info[INFO_POLLUTION], sizeof(buf_info[INFO_POLLUTION]), "%4d",
               pcity->pollution);
 
   if (!game.info.illness_on) {
-    fc_snprintf(buf[ILLNESS], sizeof(buf[ILLNESS]), " -.-");
+    fc_snprintf(buf_info[INFO_ILLNESS], sizeof(buf_info[INFO_ILLNESS]), " -.-");
   } else {
     illness = city_illness_calc(pcity, NULL, NULL, NULL, NULL);
     /* illness is in tenth of percent */
-    fc_snprintf(buf[ILLNESS], sizeof(buf[ILLNESS]), "%4.1f%%",
-                (float) illness / 10.0);
+    fc_snprintf(buf_info[INFO_ILLNESS], sizeof(buf_info[INFO_ILLNESS]),
+                "%4.1f%%", (float) illness / 10.0);
   }
 
-  get_city_dialog_airlift_value(pcity, buf[AIRLIFT], sizeof(buf[AIRLIFT]));
-  get_city_dialog_airlift_text(pcity,
-                               buf[AIRLIFT + 1], sizeof(buf[AIRLIFT + 1]));
+  get_city_dialog_airlift_value(pcity, buf_info[INFO_AIRLIFT],
+                                sizeof(buf_info[INFO_AIRLIFT]));
+  get_city_dialog_airlift_text(pcity, buf_tooltip[INFO_AIRLIFT],
+                               sizeof(buf_tooltip[INFO_AIRLIFT]));
 
   get_city_dialog_output_text(pcity, O_FOOD, buffer, sizeof(buffer));
 
   for (int i = 0; i < NUM_INFO_FIELDS; i++) {
-    int j = 2 * i;
+    qlt[i]->setText(QString(buf_info[i]));
 
-    qlt[i]->setText(QString(buf[2 * i]));
-
-    if (j != GROWTH && j != GRANARY && j != WASTE && j != CORRUPTION) {
-      qlt[i]->setToolTip("<pre>"
-                         + QString(buf[2 * i + 1]).toHtmlEscaped()
+    if (buf_tooltip[i][0]) {
+      qlt[i]->setToolTip("<pre>" + QString(buf_tooltip[i]).toHtmlEscaped()
                          + "</pre>");
     }
   }
@@ -3554,9 +3567,13 @@ void city_dialog::save_worklist()
                               _("Save current worklist"),
                               _("New worklist"));
   if (ask.exec() == QDialog::Accepted) {
-    text = ask.input_edit.text().toLocal8Bit().data();
+    QByteArray ask_bytes;
+
+    ask_bytes = ask.input_edit.text().toLocal8Bit();
+    text = ask_bytes.data();
     if (!text.isEmpty()) {
-      gw = global_worklist_new(text.toLocal8Bit().data());
+      ask_bytes = text.toLocal8Bit();
+      gw = global_worklist_new(ask_bytes.data());
       city_get_queue(pcity, &queue);
       global_worklist_set(gw, &queue);
     }
@@ -3643,6 +3660,14 @@ void qtg_popdown_city_dialog(struct city *pcity)
 void qtg_popdown_all_city_dialogs()
 {
   destroy_city_dialog();
+}
+
+/**************************************************************************
+  City is about to disappear from client
+**************************************************************************/
+void qtg_city_to_disappear(struct city *pcity)
+{
+  gui()->rallies.clear(pcity);
 }
 
 /**************************************************************************
@@ -4218,7 +4243,7 @@ void city_production_model::populate()
       /* renagade deleted in production_item destructor */
       if (VUT_UTYPE == renegade->kind) {
         str = utype_name_translation(renegade->value.utype);
-        sh.setX(qMax(sh.x(), fm.width(str)));
+        sh.setX(qMax(sh.x(), fm.horizontalAdvance(str)));
 
         if (show_units) {
           pi = new production_item(renegade, this);
@@ -4226,7 +4251,7 @@ void city_production_model::populate()
         }
       } else {
         str = improvement_name_translation(renegade->value.building);
-        sh.setX(qMax(sh.x(), fm.width(str)));
+        sh.setX(qMax(sh.x(), fm.horizontalAdvance(str)));
 
         if ((is_wonder(renegade->value.building) && show_wonders)
             || (is_improvement(renegade->value.building) && show_buildings)

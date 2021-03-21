@@ -41,8 +41,6 @@
 
 #include "unit.h"
 
-static bool is_real_activity(enum unit_activity activity);
-
 Activity_type_id real_activities[ACTIVITY_LAST];
 
 struct cargo_iter {
@@ -590,7 +588,7 @@ void setup_real_activities_array(void)
   Return if given activity really is in game. For savegame compatibility
   activity enum cannot be reordered and there is holes in it.
 **************************************************************************/
-static bool is_real_activity(enum unit_activity activity)
+bool is_real_activity(enum unit_activity activity)
 {
   /* ACTIVITY_FORTRESS, ACTIVITY_AIRBASE, ACTIVITY_OLD_ROAD, and
    * ACTIVITY_OLD_RAILROAD are deprecated */
@@ -618,7 +616,7 @@ const char *get_activity_text(enum unit_activity activity)
     return _("Pollution");
   case ACTIVITY_MINE:
     /* TRANS: Activity name, verb in English */
-    return _("Plant");
+    return _("Mine");
   case ACTIVITY_IRRIGATE:
     return _("Irrigate");
   case ACTIVITY_FORTIFYING:
@@ -1828,6 +1826,7 @@ void free_unit_orders(struct unit *punit)
     free(punit->orders.list);
     punit->orders.list = NULL;
   }
+  punit->orders.length = 0;
   punit->has_orders = FALSE;
 }
 
@@ -2045,7 +2044,7 @@ enum unit_upgrade_result unit_upgrade_test(const struct unit *punit,
 
   if (punit->transporter != NULL) {
     if (!can_unit_type_transport(unit_type_get(punit->transporter),
-                                 unit_class_get(punit))) {
+                                 utype_class(to_unittype))) {
       return UU_UNSUITABLE_TRANSPORT;
     }
   } else if (!can_exist_at_tile(to_unittype, unit_tile(punit))) {

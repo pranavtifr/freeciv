@@ -583,7 +583,7 @@ void send_tile_info(struct conn_list *dest, struct tile *ptile,
   Assumption: Each unit type is visible on only one layer.
 ****************************************************************************/
 static bool unit_is_visible_on_layer(const struct unit *punit,
-				     enum vision_layer vlayer)
+                                     enum vision_layer vlayer)
 {
   return XOR(vlayer == V_MAIN, is_hiding_unit(punit));
 }
@@ -870,7 +870,11 @@ void map_change_seen(struct player *pplayer,
 
     unit_list_iterate(ptile->units, punit) {
       if (unit_is_visible_on_layer(punit, V_INVIS)
-          && can_player_see_unit(pplayer, punit)) {
+          && can_player_see_unit(pplayer, punit)
+          && (plrtile->seen_count[V_MAIN] + change[V_MAIN] <= 0
+              || !pplayers_allied(pplayer, unit_owner(punit)))) {
+        /* Allied units on seen tiles (V_MAIN) are always seen.
+         * That's how can_player_see_unit_at() works. */
         unit_goes_out_of_sight(pplayer, punit);
       }
     } unit_list_iterate_end;
@@ -1189,7 +1193,7 @@ static void player_tile_init(struct tile *ptile, struct player *pplayer)
   if (!game.server.last_updated_year) {
     plrtile->last_updated = game.info.turn;
   } else {
-    plrtile->last_updated = game.info.year;
+    plrtile->last_updated = game.info.year32;
   }
 
   plrtile->seen_count[V_MAIN] = !game.server.fogofwar_old;
@@ -1255,23 +1259,16 @@ struct player_tile *map_get_player_tile(const struct tile *ptile,
 bool update_player_tile_knowledge(struct player *pplayer, struct tile *ptile)
 {
   struct player_tile *plrtile = map_get_player_tile(ptile, pplayer);
-  bool plrtile_owner_valid = game.server.foggedborders
-                             && !map_is_known_and_seen(ptile, pplayer, V_MAIN);
-  struct player *owner = plrtile_owner_valid
-                         ? plrtile->owner
-                         : tile_owner(ptile);
 
   if (plrtile->terrain != ptile->terrain
       || !BV_ARE_EQUAL(plrtile->extras, ptile->extras)
       || plrtile->resource != ptile->resource
-      || owner != tile_owner(ptile)
+      || plrtile->owner != tile_owner(ptile)
       || plrtile->extras_owner != extra_owner(ptile)) {
     plrtile->terrain = ptile->terrain;
     plrtile->extras = ptile->extras;
     plrtile->resource = ptile->resource;
-    if (plrtile_owner_valid) {
-      plrtile->owner = tile_owner(ptile);
-    }
+    plrtile->owner = tile_owner(ptile);
     plrtile->extras_owner = extra_owner(ptile);
 
     return TRUE;
@@ -1323,7 +1320,7 @@ void update_player_tile_last_seen(struct player *pplayer,
   if (!game.server.last_updated_year) {
     map_get_player_tile(ptile, pplayer)->last_updated = game.info.turn;
   } else {
-    map_get_player_tile(ptile, pplayer)->last_updated = game.info.year;
+    map_get_player_tile(ptile, pplayer)->last_updated = game.info.year32;
   }
 }
 

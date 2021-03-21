@@ -78,7 +78,6 @@
 #include "player.h"
 #include "research.h"
 #include "tech.h"
-#include "unit.h"
 #include "unitlist.h"
 #include "version.h"
 #include "victory.h"
@@ -571,7 +570,7 @@ bool check_for_game_over(void)
       const struct player_list *members;
       bool win;
 
-      if (game.info.year < (int)spaceship_arrival(pplayer)) {
+      if (game.info.year32 < (int)spaceship_arrival(pplayer)) {
         /* We are into the future arrivals */
         break;
       }
@@ -633,7 +632,7 @@ bool check_for_game_over(void)
       /* Advance the calendar in a throwaway copy of game.info. */
       game_next_year(&next_info);
 
-      if (next_info.year < (int)spaceship_arrival(pplayer)) {
+      if (next_info.year32 < (int)spaceship_arrival(pplayer)) {
         /* Even further in the future */
         break;
       }
@@ -723,8 +722,7 @@ static void do_have_embassies_effect(void)
 **************************************************************************/
 static void update_environmental_upset(enum environment_upset_type type,
 				       int *current, int *accum, int *level,
-                                       int percent,
-                                       void (*upset_action_fn)(int))
+				       void (*upset_action_fn)(int))
 {
   int count;
 
@@ -739,7 +737,7 @@ static void update_environmental_upset(enum environment_upset_type type,
     }
   } extra_type_iterate_end;
 
-  *current = (count * percent) / 100;
+  *current = count;
   *accum += count;
   if (*accum < *level) {
     *accum = 0;
@@ -832,8 +830,8 @@ static void remove_illegal_armistice_units(struct player *plr1,
 **************************************************************************/
 static void update_diplomatics(void)
 {
-  players_iterate(plr1) {
-    players_iterate(plr2) {
+  players_iterate_alive(plr1) {
+    players_iterate_alive(plr2) {
       struct player_diplstate *state = player_diplstate_get(plr1, plr2);
 
       /* Players might just met when first of them was being handled
@@ -981,8 +979,8 @@ static void update_diplomatics(void)
           }
         }
       }
-    } players_iterate_end;
-  } players_iterate_end;
+    } players_iterate_alive_end;
+  } players_iterate_alive_end;
 }
 
 /****************************************************************************
@@ -1067,8 +1065,9 @@ static void begin_turn(bool is_new_turn)
   send_game_info(NULL);
 
   if (is_new_turn) {
-    script_server_signal_emit("turn_started", game.info.turn,
-                              game.info.year);
+    script_server_signal_emit("turn_started", 2,
+                              API_TYPE_INT, game.info.turn,
+                              API_TYPE_INT, game.info.year32);
 
     /* We build scores at the beginning of every turn.  We have to
      * build them at the beginning so that the AI can use the data,
@@ -1131,15 +1130,6 @@ static void begin_turn(bool is_new_turn)
 }
 
 /**************************************************************************
-  Comparator for sorting unit_waits in chronological order.
-**************************************************************************/
-static int unit_wait_cmp(const struct unit_wait *const *a,
-                         const struct unit_wait *const *b)
-{
-  return (*a)->wake_up > (*b)->wake_up;
-}
-
-/**************************************************************************
   Begin a phase of movement.  This handles all beginning-of-phase actions
   for one or more players.
 **************************************************************************/
@@ -1160,7 +1150,8 @@ static void begin_phase(bool is_new_phase)
 
   dlsend_packet_start_phase(game.est_connections, game.info.phase);
 
-  if (!is_new_phase) {
+  if (!is_new_phase || game.info.turn == FIRST_TURN) {
+    /* Starting from a savegame or from the very beginning */
     conn_list_iterate(game.est_connections, pconn) {
       send_diplomatic_meetings(pconn);
     } conn_list_iterate_end;
@@ -1176,22 +1167,10 @@ static void begin_phase(bool is_new_phase)
   if (is_new_phase) {
     /* Unit "end of turn" activities - of course these actually go at
      * the start of the turn! */
-    unit_wait_list_clear(server.unit_waits);
-
     phase_players_iterate(pplayer) {
       update_unit_activities(pplayer);
       flush_packets();
     } phase_players_iterate_end;
-
-    unit_wait_list_sort(server.unit_waits, unit_wait_cmp);
-    unit_wait_list_link_iterate(server.unit_waits, plink) {
-      struct unit *punit = game_unit_by_number(
-        unit_wait_list_link_data(plink)->id);
-      if (punit) {
-        punit->server.wait = plink;
-      }
-    } unit_wait_list_link_iterate_end;
-
     /* Execute orders after activities have been completed (roads built,
      * pillage done, etc.). */
     phase_players_iterate(pplayer) {
@@ -1245,10 +1224,6 @@ static void begin_phase(bool is_new_phase)
 
   game.tinfo.last_turn_change_time = (float)game.server.turn_change_time;
   game.tinfo.seconds_to_phasedone = (double)current_turn_timeout();
-  if (game.server.timeoutmask) {
-    game.server.phase_mask = fc_rand(2 * game.server.timeoutmask + 2)
-                             - game.server.timeoutmask;
-  }
   game.server.phase_timer = timer_renew(game.server.phase_timer,
                                         TIMER_USER, TIMER_ACTIVE);
   timer_start(game.server.phase_timer);
@@ -1331,7 +1306,7 @@ static void end_phase(void)
     research_get(pplayer)->got_tech = FALSE;
   } phase_players_iterate_end;
 
-  phase_players_iterate(pplayer) {
+  alive_phase_players_iterate(pplayer) {
     do_tech_parasite_effect(pplayer);
     player_restore_units(pplayer);
 
@@ -1350,7 +1325,7 @@ static void end_phase(void)
      * check for finished research */
     update_bulbs(pplayer, -player_tech_upkeep(pplayer), TRUE);
     flush_packets();
-  } phase_players_iterate_end;
+  } alive_phase_players_iterate_end;
 
   /* Some player/global effect may have changed cities' vision range */
   phase_players_iterate(pplayer) {
@@ -1461,7 +1436,10 @@ static void end_turn(void)
 
       lsend_packet_achievement_info(first->connections, &pack);
 
-      script_server_signal_emit("achievement_gained", ach, first, TRUE);
+      script_server_signal_emit("achievement_gained", 3,
+                                API_TYPE_ACHIEVEMENT, ach,
+                                API_TYPE_PLAYER, first,
+                                API_TYPE_BOOL, TRUE);
 
     }
 
@@ -1476,8 +1454,10 @@ static void end_turn(void)
 
           lsend_packet_achievement_info(pplayer->connections, &pack);
 
-          script_server_signal_emit("achievement_gained", ach, pplayer,
-                                    FALSE);
+          script_server_signal_emit("achievement_gained", 3,
+                                    API_TYPE_ACHIEVEMENT, ach,
+                                    API_TYPE_PLAYER, pplayer,
+                                    API_TYPE_BOOL, FALSE);
         }
       } player_list_iterate_end;
     }
@@ -1488,17 +1468,13 @@ static void end_turn(void)
   if (game.info.global_warming) {
     update_environmental_upset(EUT_GLOBAL_WARMING, &game.info.heating,
                                &game.info.globalwarming,
-                               &game.info.warminglevel,
-                               game.server.global_warming_percent,
-                               global_warming);
+                               &game.info.warminglevel, global_warming);
   }
 
   if (game.info.nuclear_winter) {
     update_environmental_upset(EUT_NUCLEAR_WINTER, &game.info.cooling,
                                &game.info.nuclearwinter,
-                               &game.info.coolinglevel,
-                               game.server.nuclear_winter_percent,
-                               nuclear_winter);
+                               &game.info.coolinglevel, nuclear_winter);
   }
 
   update_diplomatics();
@@ -2860,6 +2836,14 @@ static void srv_running(void)
 	break;
       }
     }
+
+    /* Make sure is_new_turn is reseted before next turn even if
+     * we did zero rounds in the loop (i.e. if current phase from
+     * the savegame was >= num phases). Without this begin_turn()
+     * would not reset phase, so there would be infinite loop
+     * where phase is too high for is_new_turn to get set. */
+    is_new_turn = TRUE;
+
     end_turn();
     log_debug("Sendinfotometaserver");
     (void) send_server_info_to_metaserver(META_REFRESH);
@@ -3056,7 +3040,8 @@ static void srv_ready(void)
 #endif
 
   if (game.info.is_new_game) {
-    game.info.year = game.server.start_year;
+    game.info.year32 = game.server.start_year;
+    game.info.year16 = game.server.start_year;
     /* Must come before assign_player_colors() */
     generate_players();
     final_ruleset_adjustments();
@@ -3161,7 +3146,7 @@ static void srv_ready(void)
     }
 
     if (game.map.server.generator != MAPGEN_SCENARIO) {
-      script_server_signal_emit("map_generated");
+      script_server_signal_emit("map_generated", 0);
     }
 
     game_map_init();
@@ -3288,18 +3273,6 @@ static void srv_ready(void)
 }
 
 /**************************************************************************
-  Free function for unit_wait.
-**************************************************************************/
-static void unit_wait_destroy(struct unit_wait *pwait)
-{
-  struct unit *punit = game_unit_by_number(pwait->id);
-  if (punit) {
-    punit->server.wait = NULL;
-  }
-  free(pwait);
-}
-
-/**************************************************************************
   Initialize game data for the server (corresponds to server_game_free).
 **************************************************************************/
 void server_game_init(void)
@@ -3308,7 +3281,6 @@ void server_game_init(void)
   server.playable_nations = 0;
   server.nbarbarians = 0;
   server.identity_number = IDENTITY_NUMBER_SKIP;
-  server.unit_waits = unit_wait_list_new_full(unit_wait_destroy);
 
   BV_CLR_ALL(identity_numbers_used);
   identity_number_reserve(IDENTITY_NUMBER_ZERO);
@@ -3366,7 +3338,6 @@ void server_game_free(void)
   log_civ_score_free();
   playercolor_free();
   citymap_free();
-  unit_wait_list_destroy(server.unit_waits);
   game_free();
 }
 

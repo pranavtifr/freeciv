@@ -51,6 +51,8 @@ static bool actions_initialized = FALSE;
 
 static struct action_enabler_list *action_enablers_by_action[ACTION_COUNT];
 
+static struct astring ui_name_str = ASTRING_INIT;
+
 static struct action *action_new(enum gen_action id,
                                  enum action_target_kind target_kind,
                                  bool hostile);
@@ -156,6 +158,8 @@ void actions_free(void)
 
     FC_FREE(actions[act]);
   } action_iterate_end;
+
+  astr_free(&ui_name_str);
 }
 
 /**************************************************************************
@@ -301,16 +305,18 @@ const char *action_get_ui_name_mnemonic(int act_id,
   appears in the action name it can be escaped by doubling.
   Success probability information is interpreted and added to the text.
   A custom text can be inserted before the probability information.
+
+  The returned string is in statically allocated astring, and thus this
+  function is not thread-safe.
 **************************************************************************/
-const char *action_prepare_ui_name(int act_id, const char* mnemonic,
+const char *action_prepare_ui_name(int act_id, const char *mnemonic,
                                    const struct act_prob prob,
-                                   const char* custom)
+                                   const char *custom)
 {
-  static struct astring str = ASTRING_INIT;
-  static struct astring chance = ASTRING_INIT;
+  struct astring chance = ASTRING_INIT;
 
   /* Text representation of the probability. */
-  const char* probtxt;
+  const char *probtxt;
 
   if (!actions_are_ready()) {
     /* Could be a client who haven't gotten the ruleset yet */
@@ -327,11 +333,11 @@ const char *action_prepare_ui_name(int act_id, const char* mnemonic,
     fc_assert(custom == NULL || custom[0] == '\0');
 
     /* Make the best of what is known */
-    astr_set(&str, _("%s%s (name may be wrong)"),
+    astr_set(&ui_name_str, _("%s%s (name may be wrong)"),
              mnemonic, gen_action_name(act_id));
 
     /* Return the guess. */
-    return astr_str(&str);
+    return astr_str(&ui_name_str);
   }
 
   /* How to interpret action probabilities like prob is documented in
@@ -418,18 +424,23 @@ const char *action_prepare_ui_name(int act_id, const char* mnemonic,
     astr_add(&fmtstr, "%s", ui_name);
 
     /* Use the modified format string */
-    astr_set(&str, astr_str(&fmtstr), mnemonic,
+    astr_set(&ui_name_str, astr_str(&fmtstr), mnemonic,
              astr_str(&chance));
 
     astr_free(&fmtstr);
   }
 
-  return astr_str(&str);
+  astr_free(&chance);
+
+  return astr_str(&ui_name_str);
 }
 
 /**************************************************************************
   Get information about starting the action in the current situation.
   Suitable for a tool tip for the button that starts it.
+
+  The returned string is in statically allocated astring, and thus this
+  function is not thread-safe.
 **************************************************************************/
 const char *action_get_tool_tip(const int act_id,
                                 const struct act_prob prob)
@@ -1381,8 +1392,9 @@ action_prob(const enum gen_action wanted_action,
     break;
   };
 
-  fc_assert_ret_val_msg(FALSE, ACTPROB_NOT_IMPLEMENTED,
-                        "Should be yes, maybe or no");
+  fc_assert_msg(FALSE, "Should be yes, maybe or no");
+
+  return ACTPROB_NOT_IMPLEMENTED;
 }
 
 /**************************************************************************
@@ -1491,6 +1503,45 @@ struct act_prob action_prob_vs_unit(const struct unit* actor_unit,
                      tile_city(unit_tile(target_unit)), NULL,
                      unit_tile(target_unit),
                      target_unit, NULL, NULL);
+}
+
+/**********************************************************************//**
+  Returns the actor unit's probability of successfully performing the
+  specified action against the action specific target.
+  @param paction the action to perform
+  @param act_unit the actor unit
+  @param tgt_city the target for city targeted actions
+  @param tgt_unit the target for unit targeted actions
+  @return the action probability of performing the action
+**************************************************************************/
+struct act_prob action_prob_unit_vs_tgt(const struct action *paction,
+                                        const struct unit *act_unit,
+                                        const struct city *tgt_city,
+                                        const struct unit *tgt_unit)
+{
+  /* Assume impossible until told otherwise. */
+  struct act_prob prob = ACTPROB_IMPOSSIBLE;
+
+  fc_assert_ret_val(paction, ACTPROB_IMPOSSIBLE);
+  fc_assert_ret_val(act_unit, ACTPROB_IMPOSSIBLE);
+
+  switch (action_get_target_kind(paction)) {
+  case ATK_CITY:
+    if (tgt_city) {
+      prob = action_prob_vs_city(act_unit, paction->id, tgt_city);
+    }
+    break;
+  case ATK_UNIT:
+    if (tgt_unit) {
+      prob = action_prob_vs_unit(act_unit, paction->id, tgt_unit);
+    }
+    break;
+  case ATK_COUNT:
+    log_error("Invalid action target kind");
+    break;
+  }
+
+  return prob;
 }
 
 /**********************************************************************//**

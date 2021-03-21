@@ -1424,7 +1424,7 @@ static enum fc_tristate is_minculture_in_range(const struct city *target_city,
 ****************************************************************************/
 static enum fc_tristate
 is_tile_units_in_range(const struct tile *target_tile, enum req_range range,
-                       int maxUnits)
+                       int max_units)
 {
   /* TODO: if can't see V_INVIS -> TRI_MAYBE */
   switch (range) {
@@ -1432,16 +1432,16 @@ is_tile_units_in_range(const struct tile *target_tile, enum req_range range,
     if (!target_tile) {
       return TRI_MAYBE;
     }
-    return BOOL_TO_TRISTATE(unit_list_size(target_tile->units) <= maxUnits);
+    return BOOL_TO_TRISTATE(unit_list_size(target_tile->units) <= max_units);
   case REQ_RANGE_CADJACENT:
     if (!target_tile) {
       return TRI_MAYBE;
     }
-    if (unit_list_size(target_tile->units) <= maxUnits) {
+    if (unit_list_size(target_tile->units) <= max_units) {
       return TRI_YES;
     }
     cardinal_adjc_iterate(target_tile, adjc_tile) {
-      if (unit_list_size(adjc_tile->units) <= maxUnits) {
+      if (unit_list_size(adjc_tile->units) <= max_units) {
         return TRI_YES;
       }
     } cardinal_adjc_iterate_end;
@@ -1450,11 +1450,11 @@ is_tile_units_in_range(const struct tile *target_tile, enum req_range range,
     if (!target_tile) {
       return TRI_MAYBE;
     }
-    if (unit_list_size(target_tile->units) <= maxUnits) {
+    if (unit_list_size(target_tile->units) <= max_units) {
       return TRI_YES;
     }
     adjc_iterate(target_tile, adjc_tile) {
-      if (unit_list_size(adjc_tile->units) <= maxUnits) {
+      if (unit_list_size(adjc_tile->units) <= max_units) {
         return TRI_YES;
       }
     } adjc_iterate_end;
@@ -2437,96 +2437,99 @@ static enum fc_tristate is_citytile_in_range(const struct tile *target_tile,
                                              enum req_range range,
                                              enum citytile_type citytile)
 {
-  if (target_tile) {
-    if (citytile == CITYT_CENTER) {
-      switch (range) {
-      case REQ_RANGE_LOCAL:
-        return BOOL_TO_TRISTATE(is_city_in_tile(target_tile, target_city));
-      case REQ_RANGE_CADJACENT:
-        if (is_city_in_tile(target_tile, target_city)) {
-          return TRI_YES;
-        }
-        cardinal_adjc_iterate(target_tile, adjc_tile) {
-          if (is_city_in_tile(adjc_tile, target_city)) {
-            return TRI_YES;
-          }
-        } cardinal_adjc_iterate_end;
-
-        return TRI_NO;
-      case REQ_RANGE_ADJACENT:
-        if (is_city_in_tile(target_tile, target_city)) {
-          return TRI_YES;
-        }
-        adjc_iterate(target_tile, adjc_tile) {
-          if (is_city_in_tile(adjc_tile, target_city)) {
-            return TRI_YES;
-          }
-        } adjc_iterate_end;
-
-        return TRI_NO;
-      case REQ_RANGE_CITY:
-      case REQ_RANGE_TRADEROUTE:
-      case REQ_RANGE_CONTINENT:
-      case REQ_RANGE_PLAYER:
-      case REQ_RANGE_TEAM:
-      case REQ_RANGE_ALLIANCE:
-      case REQ_RANGE_WORLD:
-      case REQ_RANGE_COUNT:
-	break;
-      }
-
-      fc_assert_msg(FALSE, "Invalid range %d for citytile.", range);
-
-      return TRI_MAYBE;
-    } else if (citytile == CITYT_CLAIMED) {
-      switch (range) {
-      case REQ_RANGE_LOCAL:
-        return BOOL_TO_TRISTATE(target_tile->owner != NULL);
-      case REQ_RANGE_CADJACENT:
-        if (target_tile->owner != NULL) {
-          return TRI_YES;
-        }
-        cardinal_adjc_iterate(target_tile, adjc_tile) {
-          if (adjc_tile->owner != NULL) {
-            return TRI_YES;
-          }
-        } cardinal_adjc_iterate_end;
-
-        return TRI_NO;
-      case REQ_RANGE_ADJACENT:
-        if (target_tile->owner != NULL) {
-          return TRI_YES;
-        }
-        adjc_iterate(target_tile, adjc_tile) {
-          if (adjc_tile->owner != NULL) {
-            return TRI_YES;
-          }
-        } adjc_iterate_end;
-
-        return TRI_NO;
-      case REQ_RANGE_CITY:
-      case REQ_RANGE_TRADEROUTE:
-      case REQ_RANGE_CONTINENT:
-      case REQ_RANGE_PLAYER:
-      case REQ_RANGE_TEAM:
-      case REQ_RANGE_ALLIANCE:
-      case REQ_RANGE_WORLD:
-      case REQ_RANGE_COUNT:
-        break;
-      }
-
-      fc_assert_msg(FALSE, "Invalid range %d for citytile.", range);
-
-      return TRI_MAYBE;
-    } else {
-      /* Not implemented */
-      log_error("is_req_active(): citytile %d not supported.",
-		citytile);
-      return TRI_MAYBE;
-    }
-  } else {
+  fc_assert_ret_val(req_range_is_valid(range), TRI_MAYBE);
+  if (target_tile == NULL) {
     return TRI_MAYBE;
   }
+
+  switch (citytile) {
+  case CITYT_CENTER:
+    switch (range) {
+    case REQ_RANGE_LOCAL:
+      return BOOL_TO_TRISTATE(is_city_in_tile(target_tile, target_city));
+    case REQ_RANGE_CADJACENT:
+      if (is_city_in_tile(target_tile, target_city)) {
+        return TRI_YES;
+      }
+      cardinal_adjc_iterate(target_tile, adjc_tile) {
+        if (is_city_in_tile(adjc_tile, target_city)) {
+          return TRI_YES;
+        }
+      } cardinal_adjc_iterate_end;
+
+      return TRI_NO;
+    case REQ_RANGE_ADJACENT:
+      if (is_city_in_tile(target_tile, target_city)) {
+        return TRI_YES;
+      }
+      adjc_iterate(target_tile, adjc_tile) {
+        if (is_city_in_tile(adjc_tile, target_city)) {
+          return TRI_YES;
+        }
+      } adjc_iterate_end;
+
+      return TRI_NO;
+    case REQ_RANGE_CITY:
+    case REQ_RANGE_TRADEROUTE:
+    case REQ_RANGE_CONTINENT:
+    case REQ_RANGE_PLAYER:
+    case REQ_RANGE_TEAM:
+    case REQ_RANGE_ALLIANCE:
+    case REQ_RANGE_WORLD:
+    case REQ_RANGE_COUNT:
+      fc_assert_msg(FALSE, "Invalid range %d for citytile.", range);
+      break;
+    }
+
+    return TRI_MAYBE;
+  case CITYT_CLAIMED:
+    switch (range) {
+    case REQ_RANGE_LOCAL:
+      return BOOL_TO_TRISTATE(target_tile->owner != NULL);
+    case REQ_RANGE_CADJACENT:
+      if (target_tile->owner != NULL) {
+        return TRI_YES;
+      }
+      cardinal_adjc_iterate(target_tile, adjc_tile) {
+        if (adjc_tile->owner != NULL) {
+          return TRI_YES;
+        }
+      } cardinal_adjc_iterate_end;
+
+      return TRI_NO;
+    case REQ_RANGE_ADJACENT:
+      if (target_tile->owner != NULL) {
+        return TRI_YES;
+      }
+      adjc_iterate(target_tile, adjc_tile) {
+        if (adjc_tile->owner != NULL) {
+          return TRI_YES;
+        }
+      } adjc_iterate_end;
+
+      return TRI_NO;
+    case REQ_RANGE_CITY:
+    case REQ_RANGE_TRADEROUTE:
+    case REQ_RANGE_CONTINENT:
+    case REQ_RANGE_PLAYER:
+    case REQ_RANGE_TEAM:
+    case REQ_RANGE_ALLIANCE:
+    case REQ_RANGE_WORLD:
+    case REQ_RANGE_COUNT:
+      fc_assert_msg(FALSE, "Invalid range %d for citytile.", range);
+      break;
+    }
+
+    return TRI_MAYBE;
+  case CITYT_LAST:
+    /* Handled below */
+    break;
+  }
+
+  /* Not implemented */
+  log_error("is_req_active(): citytile %d not supported.",
+            citytile);
+  return TRI_MAYBE;
 }
 
 /****************************************************************************
@@ -2555,11 +2558,12 @@ is_achievement_in_range(const struct player *target_player,
     } else {
       return TRI_NO;
     }
-  } else {
-    fc_assert_ret_val_msg(FALSE, TRI_MAYBE,
-                          "Illegal range %d for achievement requirement.",
-                          range);
   }
+
+  fc_assert_msg(FALSE,
+                "Illegal range %d for achievement requirement.", range);
+
+  return TRI_MAYBE;
 }
 
 /****************************************************************************
@@ -2836,7 +2840,7 @@ bool is_req_active(const struct player *target_player,
                                  req->source.value.extraflag);
     break;
   case VUT_MINYEAR:
-    eval = BOOL_TO_TRISTATE(game.info.year >= req->source.value.minyear);
+    eval = BOOL_TO_TRISTATE(game.info.year32 >= req->source.value.minyear);
     break;
   case VUT_TOPO:
     eval = BOOL_TO_TRISTATE(current_topo_has_flag(req->source.value.topo_property));
@@ -2975,7 +2979,7 @@ bool is_req_unchanging(const struct requirement *req)
     return TRUE;
   case VUT_MINYEAR:
     /* Once year is reached, it does not change again */
-    return req->source.value.minyear > game.info.year;
+    return req->source.value.minyear > game.info.year32;
   case VUT_COUNT:
     break;
   }
@@ -3637,6 +3641,27 @@ static enum req_item_found terrain_type_found(const struct requirement *preq,
 }
 
 /**********************************************************************//**
+  Find if a tile state fulfills a requirement
+**************************************************************************/
+static enum req_item_found city_tile_found(const struct requirement *preq,
+                                           const struct universal *source)
+{
+  fc_assert_ret_val(citytile_type_is_valid(source->value.citytile),
+                    ITF_NOT_APPLICABLE);
+
+  switch (preq->source.kind) {
+  case VUT_CITYTILE:
+    return (source->value.citytile == preq->source.value.citytile
+            ? ITF_YES
+            /* The presence of one tile state doesn't block another */
+            : ITF_NOT_APPLICABLE);
+  default:
+    /* Not found and not relevant. */
+    return ITF_NOT_APPLICABLE;
+  };
+}
+
+/**********************************************************************//**
   Find if an extra type fulfills a requirement
 **************************************************************************/
 static enum req_item_found extra_type_found(const struct requirement *preq,
@@ -3695,6 +3720,7 @@ void universal_found_functions_init(void)
   universal_found_function[VUT_UCLASS] = &unit_class_found;
   universal_found_function[VUT_UTYPE] = &unit_type_found;
   universal_found_function[VUT_TERRAIN] = &terrain_type_found;
+  universal_found_function[VUT_CITYTILE] = &city_tile_found;
   universal_found_function[VUT_EXTRA] = &extra_type_found;
   universal_found_function[VUT_OTYPE] = &output_type_found;
 }
