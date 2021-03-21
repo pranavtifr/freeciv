@@ -463,11 +463,11 @@ static void free_socket_packet_buffer(struct socket_packet_buffer *buf)
   If 'private' is true, show the actual hostname, otherwise mask it.
   Use the helper macros conn_description() and conn_description_public().
 **************************************************************************/
-const char *conn_description_real(const struct connection *pconn, bool private)
+const char *conn_description_real(const struct connection *pconn, bool is_private)
 {
   static char buffer[MAX_LEN_NAME*2 + MAX_LEN_ADDR + 128];
   const char *addr = NULL;
-  if (private) {
+  if (is_private) {
     addr = pconn->addr;
   } else {
     addr = conn_addr_public(pconn);
