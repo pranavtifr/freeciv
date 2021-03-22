@@ -3281,19 +3281,22 @@ void city_dialog::buy()
   int ret;
   const char *name = city_production_name_translation(pcity);
   int value = city_production_buy_gold_cost(pcity);
+  int remaining_prod = city_production_build_shield_cost(pcity)
+        - pcity->shield_stock;
   hud_message_box ask(city_dlg);
 
   if (!can_client_issue_orders()) {
     return;
   }
 
+  double gperp = (double)value/(double)remaining_prod ;/*Gold per Prod*/
   fc_snprintf(buf2, ARRAY_SIZE(buf2), PL_("Treasury contains %d gold.",
                                         "Treasury contains %d gold.",
                                         client_player()->economic.gold),
               client_player()->economic.gold);
-  fc_snprintf(buf, ARRAY_SIZE(buf), PL_("Buy %s for %d gold?",
-                                        "Buy %s for %d gold?", value),
-              name, value);
+  fc_snprintf(buf, ARRAY_SIZE(buf), PL_("Buy %s for %d gold? (g2p=%5.2f)",
+                                        "Buy %s for %d gold? (g2p=%5.2f)", value),
+              name, value, gperp);
   ask.set_text_title(QString(buf), QString(buf2));
   ask.setStandardButtons(QMessageBox::Cancel | QMessageBox::Ok);
   ask.setDefaultButton(QMessageBox::Cancel);

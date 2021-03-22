@@ -3065,8 +3065,8 @@ static void buy_callback(GtkWidget *w, gpointer data)
               client_player()->economic.gold);
 
   double gperp = (double)value/(double)remaining_prod ;/*Gold per Prod*/
-  fc_snprintf(buf, ARRAY_SIZE(buf), PL_("Gold per Prod = %f",
-                                        "Gold per Prod = %f",
+  fc_snprintf(buf, ARRAY_SIZE(buf), PL_("Gold per Prod = %5.2f",
+                                        "Gold per Prod = %5.2f",
                                         gperp),
               gperp);
 
