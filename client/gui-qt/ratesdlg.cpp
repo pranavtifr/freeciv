@@ -108,8 +108,8 @@ void tax_rates_dialog::slot_cancel_button_pressed()
 ***************************************************************************/
 void tax_rates_dialog::slot_ok_button_pressed()
 {
-  dsend_packet_player_rates(&client.conn, 10 * fcde->current_min,
-                            10 * (10 - fcde->current_max),
+  dsend_packet_player_rates(&client.conn, 10 * (10 - fcde->current_max),
+                            10 * (fcde->current_min),
                             10 * (fcde->current_max - fcde->current_min));
   delete this;
 }
@@ -293,8 +293,8 @@ fc_double_edge::fc_double_edge(QWidget *parent)
   : QWidget(parent)
 {
 
-  current_min = client.conn.playing->economic.tax / 10;
-  current_max = 10 - (client.conn.playing->economic.luxury / 10);
+  current_min = client.conn.playing->economic.luxury / 10;
+  current_max = 10 - (client.conn.playing->economic.tax / 10);
   mouse_x = 0.;
   moved = 0;
   on_min = false;
@@ -350,7 +350,7 @@ void fc_double_edge::paintEvent(QPaintEvent *event)
           ((width() - 1) - 2 * cursor_size) + cursor_size;
 
   pos = cursor_size;
-  pix = get_tax_sprite(tileset, O_GOLD)->pm;
+  pix = get_tax_sprite(tileset, O_LUXURY)->pm;
   s.setWidth((width() - 2 * cursor_size) / 10);
   s.setHeight(height());
   pix_scaled = pix->scaled(s, Qt::IgnoreAspectRatio,
@@ -368,7 +368,7 @@ void fc_double_edge::paintEvent(QPaintEvent *event)
     pos = pos + pix_scaled.width();
   }
   j = i;
-  pix = get_tax_sprite(tileset, O_LUXURY)->pm;
+  pix = get_tax_sprite(tileset, O_GOLD)->pm;
   pix_scaled = pix->scaled(s, Qt::IgnoreAspectRatio,
                            Qt::SmoothTransformation);
   for (i = j; i < 10; i++) {

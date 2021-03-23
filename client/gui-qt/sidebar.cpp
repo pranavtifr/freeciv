@@ -397,7 +397,7 @@ void fc_sidewidget::update_final_pixmap()
   if (standard == SW_TAX && !client_is_global_observer()) {
     pos = 0;
     int d, modulo;
-    sprite = get_tax_sprite(tileset, O_GOLD);
+    sprite = get_tax_sprite(tileset, O_LUXURY);
     if (sprite == nullptr) {
       return;
     }
@@ -408,7 +408,7 @@ void fc_sidewidget::update_final_pixmap()
     if (client.conn.playing == nullptr) {
       return;
     }
-    for (d = 0; d < client.conn.playing->economic.tax / 10; ++d) {
+    for (d = 0; d < client.conn.playing->economic.luxury / 10; ++d) {
       p.drawPixmap(pos, 5, sprite->pm->scaled(w, h), 0, 0, w, h);
       pos = pos + w;
       reduce_mod(modulo, pos);
@@ -416,14 +416,14 @@ void fc_sidewidget::update_final_pixmap()
 
     sprite = get_tax_sprite(tileset, O_SCIENCE);
 
-    for (; d < (client.conn.playing->economic.tax
+    for (; d < (client.conn.playing->economic.luxury
                 + client.conn.playing->economic.science) / 10; ++d) {
       p.drawPixmap(pos, 5, sprite->pm->scaled(w, h), 0, 0, w, h);
       pos = pos + w;
       reduce_mod(modulo, pos);
     }
 
-    sprite = get_tax_sprite(tileset, O_LUXURY);
+    sprite = get_tax_sprite(tileset, O_GOLD);
 
     for (; d < 10 ; ++d) {
       p.drawPixmap(pos, 5, sprite->pm->scaled(w, h), 0, 0, w, h);
