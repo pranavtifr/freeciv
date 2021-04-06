@@ -16,6 +16,8 @@
 #include <fc_config.h>
 #endif
 
+#include "randseed.h"
+
 #include "fc_prehdrs.h"
 
 #include <errno.h>
