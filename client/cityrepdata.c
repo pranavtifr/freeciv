@@ -233,7 +233,7 @@ static const char *cr_entry_angry(const struct city *pcity,
 }
 
 /************************************************************************
-  Returns number of max content citizens written to string.
+  Returns number of city size steps before first unhappy citizen written to string.
   Returned string is statically allocated and its contents change when
   this function is called again.
 *************************************************************************/
@@ -241,19 +241,20 @@ static const char *cr_entry_max_content(const struct city *pcity,
 				  const void *data)
 {
   static char buf[8];
-  int max_content;
-  int base_content = player_content_citizens(pcity->owner)- city_specialists(pcity);
-  int citylux = pcity->prod[O_LUXURY];
-  while(citylux >= game.info.happy_cost && base_content > 0){ 
-      /* makes content happy, so reduces max content*/
-      base_content--;
-      citylux -= game.info.happy_cost;
-  }
-  base_content += (citylux%(2*game.info.happy_cost))/game.info.happy_cost;
-  max_content = base_content +
-                get_city_bonus(pcity, EFT_MAKE_CONTENT) +
-                pcity->martial_law;
-  fc_snprintf(buf, sizeof(buf), "%2d",max_content - pcity->feel[CITIZEN_CONTENT][FEELING_FINAL]);
+  fc_snprintf(buf, sizeof(buf), "%2d",city_size_to_unhappy(pcity));
+  return buf;
+}
+
+/************************************************************************
+  Returns number of city size steps before disorder written to string.
+  Returned string is statically allocated and its contents change when
+  this function is called again.
+*************************************************************************/
+static const char *cr_entry_max_disorder(const struct city *pcity,
+				  const void *data)
+{
+  static char buf[8];
+  fc_snprintf(buf, sizeof(buf), "%2d",city_size_to_disorder(pcity));
   return buf;
 }
 
@@ -763,8 +764,10 @@ static const struct city_report_spec base_city_report_specs[] = {
     N_("?happy/content/unhappy/angry:H/C/U/A"),
     N_("Workers: Happy, Content, Unhappy, Angry"),
     NULL, FUNC_TAG(workers) },
-  { FALSE, 2, 1, NULL, N_("?Number of additional citizens that can be made content with the current infrastructure:+C"), N_("Workers: Extra Possible Content"),
+  { FALSE, 2, 1, NULL, N_("?Number of additional citizens before first unhappy with the current infrastructure:+C"), N_("Workers: Extra Possible Content"),
     NULL, FUNC_TAG(max_content) },
+  { FALSE, 2, 1, NULL, N_("?Number of additional citizens before disorder with the current infrastructure:+U"), N_("Workers: Extra Possible"),
+    NULL, FUNC_TAG(max_disorder) },
 
   { FALSE, 8, 1, N_("Best"), N_("attack"),
     N_("Best attacking units"), NULL, FUNC_TAG(attack)},

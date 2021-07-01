@@ -597,6 +597,8 @@ int city_turns_to_build(const struct city *pcity,
                         const struct universal *target,
                         bool include_shield_stock);
 int city_turns_to_grow(const struct city *pcity);
+int city_size_to_unhappy(const struct city *pcity);
+int city_size_to_disorder(const struct city *pcity);
 bool city_can_grow_to(const struct city *pcity, int pop_size);
 bool city_can_change_build(const struct city *pcity);
 

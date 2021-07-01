@@ -1732,6 +1732,33 @@ int city_turns_to_grow(const struct city *pcity)
   }
 }
 
+int city_size_to_unhappy(const struct city *pcity)
+{
+  int max_content;
+  int base_content = player_content_citizens(pcity->owner)- city_specialists(pcity);
+  int citylux = pcity->prod[O_LUXURY];
+  while(citylux >= game.info.happy_cost && base_content > 0){
+      /* makes content happy, so reduces max content*/
+      base_content--;
+      citylux -= game.info.happy_cost;
+  }
+  base_content += (citylux%(2*game.info.happy_cost))/game.info.happy_cost;
+  max_content = base_content +
+                get_city_bonus(pcity, EFT_MAKE_CONTENT) +
+                pcity->martial_law;
+  return max_content - pcity->feel[CITIZEN_CONTENT][FEELING_FINAL];
+
+}
+
+int city_size_to_disorder(const struct city *pcity){
+
+    return city_size_to_unhappy(pcity) +
+            pcity->feel[CITIZEN_HAPPY][FEELING_FINAL] -
+            pcity->feel[CITIZEN_UNHAPPY][FEELING_FINAL] -
+            (2 * pcity->feel[CITIZEN_ANGRY][FEELING_FINAL]);
+
+}
+
 /****************************************************************************
   Return TRUE iff the city can grow to the given size.
 ****************************************************************************/
