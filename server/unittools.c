@@ -110,7 +110,7 @@ static struct tile *autoattack_target;
 
 static void unit_restore_hitpoints(struct unit *punit);
 static void unit_restore_movepoints(struct player *pplayer, struct unit *punit);
-static void update_unit_activity(struct unit *punit, time_t now);
+static void update_unit_activity(struct unit *punit);
 static bool try_to_save_unit(struct unit *punit, struct unit_type *pttype,
                              bool helpless, bool teleporting,
                              const struct city *pexclcity);
@@ -118,7 +118,6 @@ static void wakeup_neighbor_sentries(struct unit *punit);
 static void do_upgrade_effects(struct player *pplayer);
 
 static bool maybe_cancel_patrol_due_to_enemy(struct unit *punit);
-static int hp_gain_coord(struct unit *punit);
 
 static bool maybe_become_veteran_real(struct unit *punit, bool settler);
 
@@ -594,9 +593,8 @@ static void unit_restore_movepoints(struct player *pplayer, struct unit *punit)
 ****************************************************************************/
 void update_unit_activities(struct player *pplayer)
 {
-  time_t now = time(NULL);
   unit_list_iterate_safe(pplayer->units, punit) {
-    update_unit_activity(punit, now);
+    update_unit_activity(punit);
   } unit_list_iterate_safe_end;
 }
 
@@ -625,37 +623,6 @@ void finalize_unit_phase_beginning(struct player *pplayer)
     punit->changed_from_count = punit->activity_count;
     send_unit_info(NULL, punit);
   } unit_list_iterate_end;
-}
-
-/**************************************************************************
-  returns how many hp's a unit will gain on this square
-  depends on whether or not it's inside city or fortress.
-  barracks will regen landunits completely
-  airports will regen airunits  completely
-  ports    will regen navalunits completely
-  fortify will add a little extra.
-***************************************************************************/
-static int hp_gain_coord(struct unit *punit)
-{
-  int hp = 0;
-  const int base = unit_type_get(punit)->hp;
-
-  /* Includes barracks (100%), fortress (25%), etc. */
-  hp += base * get_unit_bonus(punit, EFT_HP_REGEN) / 100;
-
-  if (tile_city(unit_tile(punit))) {
-    hp = MAX(hp, base / 3);
-  }
-
-  if (!unit_class_get(punit)->hp_loss_pct) {
-    hp += (base + 9) / 10;
-  }
-
-  if (punit->activity == ACTIVITY_FORTIFIED) {
-    hp += (base + 9) / 10;
-  }
-
-  return MAX(hp, 0);
 }
 
 /**************************************************************************
@@ -741,19 +708,65 @@ static void unit_convert(struct unit *punit)
 }
 
 /**************************************************************************
-  Finish all the effects of unit activity.
+  progress settlers in their current tasks,
+  and units that is pillaging.
+  also move units that is on a goto.
+  restore unit move points (information needed for settler tasks)
 **************************************************************************/
-static void unit_activity_complete(struct unit *punit)
+static void update_unit_activity(struct unit *punit)
 {
   const enum unit_activity tile_changing_actions[] =
     { ACTIVITY_PILLAGE, ACTIVITY_GEN_ROAD, ACTIVITY_IRRIGATE, ACTIVITY_MINE,
       ACTIVITY_BASE, ACTIVITY_TRANSFORM, ACTIVITY_POLLUTION,
       ACTIVITY_FALLOUT, ACTIVITY_LAST };
 
+  struct player *pplayer = unit_owner(punit);
   bool unit_activity_done = FALSE;
   enum unit_activity activity = punit->activity;
   struct tile *ptile = unit_tile(punit);
   int i;
+
+  switch (activity) {
+  case ACTIVITY_IDLE:
+  case ACTIVITY_EXPLORE:
+  case ACTIVITY_FORTIFIED:
+  case ACTIVITY_SENTRY:
+  case ACTIVITY_GOTO:
+  case ACTIVITY_PATROL_UNUSED:
+  case ACTIVITY_UNKNOWN:
+  case ACTIVITY_LAST:
+    /*  We don't need the activity_count for the above */
+    break;
+
+  case ACTIVITY_FORTIFYING:
+  case ACTIVITY_CONVERT:
+    punit->activity_count += get_activity_rate_this_turn(punit);
+    break;
+
+  case ACTIVITY_POLLUTION:
+  case ACTIVITY_MINE:
+  case ACTIVITY_IRRIGATE:
+  case ACTIVITY_PILLAGE:
+  case ACTIVITY_TRANSFORM:
+  case ACTIVITY_FALLOUT:
+  case ACTIVITY_BASE:
+  case ACTIVITY_GEN_ROAD:
+    punit->activity_count += get_activity_rate_this_turn(punit);
+
+    /* settler may become veteran when doing something useful */
+    if (maybe_become_veteran_real(punit, TRUE)) {
+      notify_unit_experience(punit);
+    }
+    break;
+  case ACTIVITY_OLD_ROAD:
+  case ACTIVITY_OLD_RAILROAD:
+  case ACTIVITY_FORTRESS:
+  case ACTIVITY_AIRBASE:
+    fc_assert(FALSE);
+    break;
+  };
+
+  unit_restore_movepoints(pplayer, punit);
 
   switch (activity) {
   case ACTIVITY_IDLE:
@@ -765,6 +778,7 @@ static void unit_activity_complete(struct unit *punit)
   case ACTIVITY_CONVERT:
   case ACTIVITY_PATROL_UNUSED:
   case ACTIVITY_LAST:
+    /* no default, ensure all handled */
     break;
 
   case ACTIVITY_EXPLORE:
@@ -922,93 +936,12 @@ static void unit_activity_complete(struct unit *punit)
 }
 
 /**************************************************************************
-  Progress settlers in their current tasks,
-  and units that is pillaging.
-  also move units that is on a goto.
-  Restore unit move points (information needed for settler tasks)
-**************************************************************************/
-static void update_unit_activity(struct unit *punit, time_t now)
-{
-  struct player *pplayer = unit_owner(punit);
-  enum unit_activity activity = punit->activity;
-  int activity_rate = get_activity_rate_this_turn(punit);
-  struct unit_wait *wait;
-  time_t wake_up = punit->server.action_timestamp + game.server.unitwaittime;
-
-  unit_restore_movepoints(pplayer, punit);
-
-  switch (activity) {
-  case ACTIVITY_IDLE:
-  case ACTIVITY_EXPLORE:
-  case ACTIVITY_FORTIFIED:
-  case ACTIVITY_SENTRY:
-  case ACTIVITY_GOTO:
-  case ACTIVITY_PATROL_UNUSED:
-  case ACTIVITY_UNKNOWN:
-  case ACTIVITY_LAST:
-    /*  These activities do not do anything interesting at turn change. */
-    break;
-
-  case ACTIVITY_POLLUTION:
-  case ACTIVITY_MINE:
-  case ACTIVITY_IRRIGATE:
-  case ACTIVITY_PILLAGE:
-  case ACTIVITY_TRANSFORM:
-  case ACTIVITY_FALLOUT:
-  case ACTIVITY_BASE:
-  case ACTIVITY_GEN_ROAD:
-    /* settler may become veteran when doing something useful */
-    if (maybe_become_veteran_real(punit, TRUE)) {
-    notify_unit_experience(punit);
-    }
-    /* Fallthrough. */
-  case ACTIVITY_FORTIFYING:
-  case ACTIVITY_CONVERT:
-    if (game.server.unitwaittime
-        && (game.server.unitwaittime_style & UWT_ACTIVITIES)
-        && wake_up > now) {
-      wait = fc_malloc(sizeof(*wait));
-      wait->activity_count = activity_rate;
-      wait->activity = activity;
-      wait->id = punit->id;
-      wait->wake_up = wake_up;
-      unit_wait_list_append(server.unit_waits, wait);
-      return;
-    }
-
-    punit->activity_count += activity_rate;
-    break;
-
-   case ACTIVITY_OLD_ROAD:
-   case ACTIVITY_OLD_RAILROAD:
-   case ACTIVITY_FORTRESS:
-   case ACTIVITY_AIRBASE:
-     fc_assert(FALSE);
-     return;
-  }
-
-  unit_activity_complete(punit);
-}
-
-/**************************************************************************
-  Finish activity of a unit that was deferred by unitwaittime.
-**************************************************************************/
-void finish_unit_wait(struct unit *punit, int activity_count)
-{
-  punit->activity_count += activity_count;
-  unit_activity_complete(punit);
-}
-
-/**************************************************************************
   Forget the unit's last activity so that it can't be resumed. This is
   used for example when the unit moves or attacks.
 **************************************************************************/
 void unit_forget_last_activity(struct unit *punit)
 {
   punit->changed_from = ACTIVITY_IDLE;
-  if (punit->server.wait) {
-    unit_wait_list_erase(server.unit_waits, punit->server.wait);
-  }
 }
 
 /**************************************************************************
@@ -1178,8 +1111,6 @@ void bounce_unit(struct unit *punit, bool verbose)
   struct tile *punit_tile;
   struct unit_list *pcargo_units;
   int count = 0;
-  int cargo_count;
-  struct unit_bounce_data data;
 
   /* I assume that there are no topologies that have more than
    * (2d + 1)^2 tiles in the "square" of "radius" d. */
@@ -1190,8 +1121,6 @@ void bounce_unit(struct unit *punit, bool verbose)
     return;
   }
 
-  cargo_count = get_transporter_occupancy(punit);
-  unit_bounce_data_fill(&data, punit);
   pplayer = unit_owner(punit);
   punit_tile = unit_tile(punit);
 
@@ -1213,16 +1142,6 @@ void bounce_unit(struct unit *punit, bool verbose)
 
   if (count > 0) {
     struct tile *ptile = tiles[fc_rand(count)];
-    struct unit_bounce_data* cargolist = NULL;
-
-    if (cargo_count > 0) {
-      struct unit_bounce_data* pdata;
-
-      pdata = cargolist = fc_malloc(cargo_count * sizeof(*cargolist));
-      unit_cargo_iterate(punit, cargo) {
-        unit_bounce_data_fill(pdata++, cargo);
-      } unit_cargo_iterate_end;
-    }
 
     if (verbose) {
       notify_player(pplayer, ptile, E_UNIT_RELOCATED, ftc_server,
@@ -1230,26 +1149,13 @@ void bounce_unit(struct unit *punit, bool verbose)
                     _("Moved your %s."),
                     unit_link(punit));
     }
-    /* Start with it to make invasions slow and send info once */
-    if (unit_transported(punit)) {
-      unit_transport_unload(punit);
-    }
-    slow_invasions_bounced(punit, punit_tile, ptile);
     unit_move(punit, ptile, 0, NULL);
-    unit_bounce_data_restore(&data);
-    if (cargo_count > 0) {
-      struct unit_bounce_data* pdata = cargolist;
-      while (pdata < &cargolist[cargo_count]) {
-        unit_bounce_data_restore(pdata++);
-      }
-      FC_FREE(cargolist);
-    }
     return;
   }
 
   /* Didn't find a place to bounce the unit, going to disband it.
    * Try to bounce transported units. */
-  if (0 < cargo_count) {
+  if (0 < get_transporter_occupancy(punit)) {
     pcargo_units = unit_transport_cargo(punit);
     unit_list_iterate(pcargo_units, pcargo) {
       bounce_unit(pcargo, verbose);
@@ -1686,11 +1592,6 @@ static void server_remove_unit_full(struct unit *punit, bool transported,
   vision_free(punit->server.vision);
   punit->server.vision = NULL;
 
-  /* Clear a unit wait if present. */
-  if (punit->server.wait) {
-    unit_wait_list_erase(server.unit_waits, punit->server.wait);
-  }
-
   packet.unit_id = punit->id;
   /* Send to onlookers. */
   players_iterate(aplayer) {
@@ -1724,8 +1625,10 @@ static void server_remove_unit_full(struct unit *punit, bool transported,
     player_status_add(unit_owner(punit), PSTATUS_DYING);
   }
 
-  script_server_signal_emit("unit_lost", punit, unit_owner(punit),
-                            unit_loss_reason_name(reason));
+  script_server_signal_emit("unit_lost", 3,
+                            API_TYPE_UNIT, punit,
+                            API_TYPE_PLAYER, unit_owner(punit),
+                            API_TYPE_STRING, unit_loss_reason_name(reason));
 
   script_server_remove_exported_object(punit);
   game_remove_unit(punit);
@@ -2055,11 +1958,6 @@ struct unit *unit_change_owner(struct unit *punit, struct player *pplayer,
   gained_unit->fuel = punit->fuel;
   gained_unit->paradropped = punit->paradropped;
   gained_unit->server.birth_turn = punit->server.birth_turn;
-
-  if (game.server.unitwaittime_extended) {
-    /* Counts as an action for unitwaittime */
-    unit_did_action(gained_unit);
-  }
 
   send_unit_info(NULL, gained_unit);
 
@@ -2545,56 +2443,6 @@ void send_all_known_units(struct conn_list *dest)
 }
 
 /**************************************************************************
-  Nuke man-made infrastructure from the countryside 
-**************************************************************************/
-static void do_nuke_tile_extras(struct player *pplayer, struct tile *ptile)
-{
-  int destroy_chance = game.server.nuke_infra;
-  bool save_lowest_tier = game.server.nuke_infra_save_lowest;
-  
-  struct city *pcity = tile_city(ptile);
-
-  extra_type_iterate(extra) {
-    /* Only destroy man-made infra -- leave the garbage and natural features */
-    if (extra->category != ECAT_INFRA || ! tile_has_extra(ptile, extra))
-      continue;
-
-    /* Don't destroy infra that cities always have, that might be confusing */
-    if (pcity && (   extra_has_flag(extra, EF_AUTO_ON_CITY_CENTER) 
-                  || extra_has_flag(extra, EF_ALWAYS_ON_CITY_CENTER)))
-      continue;
-
-    /* destroy randomly */
-    if (fc_rand(100) >= destroy_chance)
-      continue;
-    
-    /* If we destroy something, also destroy anything "on top" of it
-     * i.e. destroying a Road takes Railroad and Maglev with it.
-     * This uses 'hidden_by' from the ruleset, but doesn't recurse,
-     * so the lower level infra needs to by 'hidden_by' all upper level
-     * infra directly (that's how it seems to be in the rulesets).
-     * This means high-level infra is more likely to get destroyed. This is intended. */ 
-    extra_type_iterate(top) {
-      int topi = extra_index(top);
-      if (tile_has_extra(ptile, top) 
-          && BV_ISSET(extra->hidden_by, topi)) {
-
-        log_verbose("do_nuke_tile: nuking extra %s hiding %s from tile %d, %d",
-                    rule_name_get(&top->name), rule_name_get(&extra->name), TILE_XY(ptile));
-        destroy_extra(ptile, top);
-      }
-    } extra_type_iterate_end;
-
-    /* or, if 'save_lowest_tier' is set, only destroy the hiding infra */
-    if (! save_lowest_tier) {
-      log_verbose("do_nuke_tile: nuking extra %s from tile %d, %d",
-                  rule_name_get(&extra->name), TILE_XY(ptile));
-      destroy_extra(ptile, extra);
-    }
-  } extra_type_iterate_end;
-}
-
-/**************************************************************************
   Nuke a square: 1) remove all units on the square, and 2) halve the 
   size of the city on the square.
 
@@ -2605,14 +2453,7 @@ static void do_nuke_tile(struct player *pplayer, struct tile *ptile)
 {
   struct city *pcity = NULL;
 
-  pcity = tile_city(ptile);
-
   unit_list_iterate_safe(ptile->units, punit) {
-
-    // unit in a city may survive
-    if(pcity && fc_rand(100) < game.server.nuke_defender_survival_chance_pct) {
-      continue;
-    }
     notify_player(unit_owner(punit), ptile, E_UNIT_LOST_MISC, ftc_server,
                   _("Your %s was nuked by %s."),
                   unit_tile_link(punit),
@@ -2628,6 +2469,7 @@ static void do_nuke_tile(struct player *pplayer, struct tile *ptile)
     wipe_unit(punit, ULR_NUKE, pplayer);
   } unit_list_iterate_safe_end;
 
+  pcity = tile_city(ptile);
 
   if (pcity) {
     notify_player(city_owner(pcity), ptile, E_CITY_NUKED, ftc_server,
@@ -2642,31 +2484,11 @@ static void do_nuke_tile(struct player *pplayer, struct tile *ptile)
                     _("You nuked %s."),
                     city_link(pcity));
     }
-   
-    /* destroy improvements, 50 % chance each */
-    city_built_iterate(pcity, pimprove) {
-      /* only destroy regular improvements, not wonders, and not those
-       * that are especially protected from sabotage (e.g. Walls) */
-      if (   is_improvement(pimprove) 
-          && pimprove->sabotage == 100
-          && fc_rand(100) < game.server.nuke_improvements) {
-        notify_player(city_owner(pcity), city_tile(pcity), E_CITY_NUKED, ftc_server,
-                      _("%s destroyed in nuclear explosion!"),
-                      improvement_name_translation(pimprove));
-        city_remove_improvement(pcity, pimprove);
-      } 
-    } city_built_iterate_end;
 
-
-    const int pop_loss = (game.server.nuke_pop_loss_pct * city_size_get(pcity)) / 100;
-    city_reduce_size(pcity, pop_loss, pplayer, "nuke");
-
-    send_city_info(NULL, pcity);
-  }
-
-  if (game.server.nuke_infra > 0) {
-    /* Destroy infra from the countryside */
-    do_nuke_tile_extras(pplayer, ptile);
+    if (city_reduce_size(pcity, city_size_get(pcity) / 2, pplayer, "nuke")) {
+      /* Send city size reduction to everyone seeing it */
+      send_city_info(NULL, pcity);
+    }
   }
 
   if (fc_rand(2) == 1) {
@@ -2878,9 +2700,13 @@ bool do_paradrop(struct unit *punit, struct tile *ptile)
 
     unit_list_iterate(ptile->units, pother) {
       if (can_player_see_unit(pplayer, pother)
-          && pplayers_non_attack(pplayer, unit_owner(pother))) {
+          && !pplayers_allied(pplayer, unit_owner(pother))) {
         notify_player(pplayer, ptile, E_BAD_COMMAND, ftc_server,
-                      _("Cannot attack unless you declare war first."));
+                      /* TRANS: Paratroopers ... Drop Paratrooper */
+                      _("Your %s can't do %s to tiles with non allied"
+                        " units."),
+                      unit_name_translation(punit),
+                      _("Drop Paratrooper"));
         return FALSE;
       }
     } unit_list_iterate_end;
@@ -3036,7 +2862,8 @@ static bool unit_enter_hut(struct unit *punit)
         /* AI with H_LIMITEDHUTS only gets 25 gold (or barbs if unlucky) */
         (void) hut_get_limited(punit);
       } else {
-        script_server_signal_emit("hut_enter", punit);
+        script_server_signal_emit("hut_enter", 1,
+                                  API_TYPE_UNIT, punit);
       }
 
       /* We need punit for the callbacks, can't continue if the unit died */
@@ -4009,7 +3836,10 @@ bool unit_move(struct unit *punit, struct tile *pdesttile, int move_cost,
 
   if (unit_lives) {
     /* Let the scripts run ... */
-    script_server_signal_emit("unit_moved", punit, psrctile, pdesttile);
+    script_server_signal_emit("unit_moved", 3,
+                              API_TYPE_UNIT, punit,
+                              API_TYPE_TILE, psrctile,
+                              API_TYPE_TILE, pdesttile);
     unit_lives = unit_is_alive(saved_id);
   }
 
@@ -4536,115 +4366,11 @@ void unit_list_refresh_vision(struct unit_list *punitlist)
   } unit_list_iterate_end;
 }
 
-
 /****************************************************************************
-  Used to implement the game rules controlled by the unitwaittime and
-  playerwaittime settings, including possible extensions like
-  unitwaittime_range.
-  
+  Used to implement the game rule controlled by the unitwaittime setting.
   Notifies the unit owner if the unit is unable to act.
 ****************************************************************************/
 bool unit_can_do_action_now(const struct unit *punit)
-{  
-  int range = game.server.unitwaittime_range;
-  int time_remaining = 0;
-  
-  if (!punit) {
-    return FALSE;
-  }
-  
-  /* check playerwaittime first */
-  if (! player_can_do_action_now(unit_owner(punit), &time_remaining)) {
-    char buf[64];
-    format_time_duration(time_remaining, buf, sizeof(buf));
-    notify_player(unit_owner(punit), unit_tile(punit), E_BAD_COMMAND,
-                  ftc_server, _("You may not act for another %s "
-                                "this turn. See /help playerwaittime."), buf);
-    return FALSE;  
-  }
-
-  if (game.server.unitwaittime <= 0) {
-    return TRUE;
-  }
-      
-  if (range < 0) {
-    /* traditional behavior: only check the unit itself */
-    if (! unit_can_do_action_now_single(punit, &time_remaining)) {
-      char buf[64];
-      format_time_duration(time_remaining, buf, sizeof(buf));
-      notify_player(unit_owner(punit), unit_tile(punit), E_BAD_COMMAND,
-                    ftc_server, _("Your unit may not act for another %s "
-                                  "this turn. See /help unitwaittime."), buf);
-      return FALSE;
-    } else {
-      return TRUE;
-    }
-  } else {
-    /* check the neighboring squares too */
-    return unit_can_do_action_now_square(punit, range);
-  }
-}
-
-/****************************************************************************
-  Check the unitwaittime for all units within a square centered on punit.
-  If there are units that cannot move, return false and a send a
-  notification containing the type of the unit with longest time remaining.
-****************************************************************************/
-bool unit_can_do_action_now_square(const struct unit *punit, int range)
-{
-  int time_remaining = 0;
-  struct unit *runit = NULL; /* most restrictive unit */
-  bool check_allies = game.server.unitwaittime_allied;
-  
-  /* loop over all nearby owned (and possibly allied) units
-     and find the one with longest UWT remaining. */
-  square_iterate(unit_tile(punit), range, atile) {
-    unit_list_iterate(atile->units, aunit) {
-      int t = 0;
-      if (unit_owner(punit) == unit_owner(aunit) ||
-          (check_allies && pplayers_allied(unit_owner(punit), unit_owner(aunit)))
-         ) {
-        if (! unit_can_do_action_now_single(aunit, &t)) {
-          if (t > time_remaining) {
-            time_remaining = t;
-            runit = aunit;
-          }
-        }
-      }
-    } unit_list_iterate_end;
-  } square_iterate_end;
-
-  if (! runit) {
-    /* no conflicting units, movement allowed */
-    return TRUE;
-  }
-
-  /* punit itself or some nearby unit causes a conflict */
-  char buf[64];
-  format_time_duration(time_remaining, buf, sizeof(buf));
-  if (runit != punit) {
-    bool allied = (unit_owner(punit) != unit_owner(runit));
-    notify_player(unit_owner(punit), unit_tile(punit), E_BAD_COMMAND,
-                  ftc_server, _("Your %s may not act for another %s "
-                                "this turn (due to a nearby %s%s). "
-                                "See /help unitwaittime_range."), 
-                                unit_name_translation(punit), buf,
-                                allied ? "allied " : "",
-                                unit_name_translation(runit));
-  } else {
-    notify_player(unit_owner(punit), unit_tile(punit), E_BAD_COMMAND,
-                  ftc_server, _("Your %s may not act for another %s "
-                                "this turn. See /help unitwaittime."), 
-                                unit_name_translation(punit), buf);
-  }
-  return FALSE;
-}
-
-/****************************************************************************
-  Check the unitwaittime for a single unit, used as helper
-  by unit_can_do_action_now().
-****************************************************************************/
-bool unit_can_do_action_now_single(const struct unit *punit, int *time_remaining)
 {
   time_t dt;
 
@@ -4659,73 +4385,32 @@ bool unit_can_do_action_now_single(const struct unit *punit, int *time_remaining
   if (punit->server.action_turn != game.info.turn - 1) {
     return TRUE;
   }
- 
+
   dt = time(NULL) - punit->server.action_timestamp;
   if (dt < game.server.unitwaittime) {
-    if (time_remaining) {
-      *time_remaining = game.server.unitwaittime - dt;
-    }
+    char buf[64];
+    format_time_duration(game.server.unitwaittime - dt, buf, sizeof(buf));
+    notify_player(unit_owner(punit), unit_tile(punit), E_BAD_COMMAND,
+                  ftc_server, _("Your unit may not act for another %s "
+                                "this turn. See /help unitwaittime."), buf);
     return FALSE;
   }
 
   return TRUE;
 }
-
-
-/**************************************************************************** 
-  Implement player wait time (PWT), a generalization of unit wait time (UWT).
-  Controlled by the playerwaittime setting. This is called from
-  unit_can_do_action_now(), which is also responsible for notifying the
-  player.
-****************************************************************************/
-bool player_can_do_action_now(const struct player *pplayer, int *time_remaining)
-{
-  time_t dt;
-  int playerwaittime = game.server.playerwaittime;
-
-  if (!pplayer) {
-    return FALSE;
-  }
-
-  if (playerwaittime <= 0) {
-    return TRUE;
-  }
-
-  if (pplayer->server.action_turn != game.info.turn - 1) {
-    return TRUE;
-  }
- 
-  dt = time(NULL) - pplayer->server.action_timestamp;
-  if (dt < playerwaittime) {
-    if (time_remaining) {
-      *time_remaining = playerwaittime - dt;
-    }
-    return FALSE;
-  }
-
-  return TRUE;
-}
-
-
 
 /****************************************************************************
-  Mark a unit and its owner as having done something at the current time. 
-  This is used in conjunction with unit_can_do_action_now() and the 
-  unitwaittime and playerwaittime settings.
+  Mark a unit as having done something at the current time. This is used
+  in conjunction with unit_can_do_action_now() and the unitwaittime setting.
 ****************************************************************************/
 void unit_did_action(struct unit *punit)
 {
-  struct player *pplayer = NULL;
   if (!punit) {
     return;
   }
 
   punit->server.action_timestamp = time(NULL);
   punit->server.action_turn = game.info.turn;
-  
-  pplayer = unit_owner(punit);
-  pplayer->server.action_timestamp = time(NULL);
-  pplayer->server.action_turn = game.info.turn;
 }
 
 /**************************************************************************

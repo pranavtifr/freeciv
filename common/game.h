@@ -25,6 +25,7 @@ extern "C" {
 
 /* utility */
 #include "fcthread.h"
+#include "randseed.h"
 #include "shared.h"
 #include "timing.h"
 
@@ -231,8 +232,8 @@ struct civ_game {
       enum scorelog_level scoreloglevel;
       char scorefile[MAX_LEN_NAME];
       int scoreturn;    /* next make_history_report() */
-      int seed_setting;
-      int seed;
+      randseed seed_setting;
+      randseed seed;
 
 
       enum trade_revenue_style trade_revenue_style;
@@ -310,7 +311,16 @@ struct civ_game {
   } callbacks;
 };
 
-bool is_server(void);
+extern bool am_i_server;
+
+/**************************************************************************
+  Is the program type server?
+**************************************************************************/
+static inline bool is_server(void)
+{
+  return am_i_server;
+}
+
 void i_am_server(void);
 void i_am_client(void);
 
@@ -725,7 +735,7 @@ extern struct civ_game game;
 #define GAME_MIN_REVOLUTION_LENGTH      1
 #define GAME_MAX_REVOLUTION_LENGTH      20
 
-#define GAME_START_YEAR -4000
+#define GAME_DEFAULT_START_YEAR -4000
 
 #define GAME_DEFAULT_AIRLIFTINGSTYLE AIRLIFTING_CLASSICAL
 #define GAME_DEFAULT_PERSISTENTREADY PERSISTENTR_DISABLED

@@ -85,14 +85,6 @@ bool am_i_server = FALSE;
 static void game_defaults(void);
 
 /**************************************************************************
-  Is program type server?
-**************************************************************************/
-bool is_server(void)
-{
-  return am_i_server;
-}
-
-/**************************************************************************
   Set program type to server.
 **************************************************************************/
 void i_am_server(void)
@@ -285,7 +277,6 @@ static void game_defaults(void)
   game.info.angrycitizen     = GAME_DEFAULT_ANGRYCITIZEN;
   game.info.borders          = GAME_DEFAULT_BORDERS;
   game.info.calendar_skip_0  = FALSE;
-  game.server.caravan_bonus_style = GAME_DEFAULT_CARAVAN_BONUS_STYLE;
   game.info.celebratesize    = GAME_DEFAULT_CELEBRATESIZE;
   game.info.citymindist      = GAME_DEFAULT_CITYMINDIST;
   game.info.cooling          = 0;
@@ -331,15 +322,14 @@ static void game_defaults(void)
   game.info.tech             = GAME_DEFAULT_TECHLEVEL;
   game.info.timeout          = GAME_DEFAULT_TIMEOUT;
   game.info.trademindist     = GAME_DEFAULT_TRADEMINDIST;
-  game.server.trade_revenue_style = GAME_DEFAULT_TRADE_REVENUE_STYLE;
   game.info.trading_city     = GAME_DEFAULT_TRADING_CITY;
   game.info.trading_gold     = GAME_DEFAULT_TRADING_GOLD;
   game.info.trading_tech     = GAME_DEFAULT_TRADING_TECH;
   game.info.turn             = 0;
   game.info.warminglevel     = 0; /* set later */
   game.info.year_0_hack      = FALSE;
-  game.info.year32           = GAME_START_YEAR;
-  game.info.year16           = GAME_START_YEAR;
+  game.info.year32           = GAME_DEFAULT_START_YEAR;
+  game.info.year16           = GAME_DEFAULT_START_YEAR;
 
   /* The scenario packets. */
   game.scenario.is_scenario = FALSE;
@@ -379,10 +369,8 @@ static void game_defaults(void)
     }
     sz_strlcpy(game.server.demography, GAME_DEFAULT_DEMOGRAPHY);
     game.server.diplchance        = GAME_DEFAULT_DIPLCHANCE;
-    game.server.diplchance_steal  = GAME_DEFAULT_DIPLCHANCE_STEAL;
     game.server.diplbulbcost      = GAME_DEFAULT_DIPLBULBCOST;
     game.server.diplgoldcost      = GAME_DEFAULT_DIPLGOLDCOST;
-    game.server.incite_gold_recovered = GAME_DEFAULT_INCITE_GOLD_RECOVERED;
     game.server.dispersion        = GAME_DEFAULT_DISPERSION;
     game.server.endspaceship      = GAME_DEFAULT_END_SPACESHIP;
     game.server.end_turn          = GAME_DEFAULT_END_TURN;
@@ -394,7 +382,6 @@ static void game_defaults(void)
     game.server.fogofwar_old      = game.info.fogofwar;
     game.server.last_updated_year = FALSE;
     game.server.freecost          = GAME_DEFAULT_FREECOST;
-    game.server.global_warming_percent = GAME_DEFAULT_GLOBAL_WARMING_PERCENT;
     game.server.homecaughtunits   = GAME_DEFAULT_HOMECAUGHTUNITS;
     game.server.kick_time         = GAME_DEFAULT_KICK_TIME;
     game.server.killunhomed       = GAME_DEFAULT_KILLUNHOMED;
@@ -413,14 +400,8 @@ static void game_defaults(void)
     game.server.trait_dist        = GAME_DEFAULT_TRAIT_DIST_MODE;
     game.server.min_players       = GAME_DEFAULT_MIN_PLAYERS;
     game.server.natural_city_names = GAME_DEFAULT_NATURALCITYNAMES;
-    game.server.nuclear_winter_percent = GAME_DEFAULT_NUCLEAR_WINTER_PERCENT;
     game.server.plrcolormode      = GAME_DEFAULT_PLRCOLORMODE;
     game.server.netwait           = GAME_DEFAULT_NETWAIT;
-    game.server.nuke_improvements = GAME_DEFAULT_NUKE_IMPROVEMENTS;
-    game.server.nuke_infra        = GAME_DEFAULT_NUKE_INFRA;
-    game.server.nuke_infra_save_lowest = GAME_DEFAULT_NUKE_INFRA_SAVE_LOWEST;
-    game.server.default_diplstate_is_peace = GAME_DEFAULT_DEFAULT_DIPLSTATE_IS_PEACE;
-    game.server.contact_intel     = GAME_DEFAULT_CONTACT_INTEL;
     game.server.occupychance      = GAME_DEFAULT_OCCUPYCHANCE;
     game.server.onsetbarbarian    = GAME_DEFAULT_ONSETBARBARIAN;
     game.server.phase_mode_stored = GAME_DEFAULT_PHASE_MODE;
@@ -443,8 +424,7 @@ static void game_defaults(void)
     game.server.scoreturn         = GAME_DEFAULT_SCORETURN - 1;
     game.server.seed              = GAME_DEFAULT_SEED;
     sz_strlcpy(game.server.start_units, GAME_DEFAULT_START_UNITS);
-    game.server.spaceship_travel_time = GAME_DEFAULT_SPACESHIP_TRAVEL_TIME;
-    game.server.start_year        = GAME_START_YEAR;
+    game.server.start_year        = GAME_DEFAULT_START_YEAR;
     game.server.tcptimeout        = GAME_DEFAULT_TCPTIMEOUT;
     game.server.techlost_donor    = GAME_DEFAULT_TECHLOST_DONOR;
     game.server.techlost_recv     = GAME_DEFAULT_TECHLOST_RECV;
@@ -457,10 +437,6 @@ static void game_defaults(void)
     game.server.timeoutintinc     = GAME_DEFAULT_TIMEOUTINTINC;
     game.server.turnblock         = GAME_DEFAULT_TURNBLOCK;
     game.server.unitwaittime      = GAME_DEFAULT_UNITWAITTIME;
-    game.server.unitwaittime_range    = GAME_DEFAULT_UNITWAITTIME_RANGE;
-    game.server.unitwaittime_allied   = GAME_DEFAULT_UNITWAITTIME_ALLIED;
-    game.server.unitwaittime_extended = GAME_DEFAULT_UNITWAITTIME_EXTENDED;
-    game.server.playerwaittime        = GAME_DEFAULT_PLAYERWAITTIME;
     game.server.plr_colors        = NULL;
   } else {
     /* Client side takes care of itself in client_main() */

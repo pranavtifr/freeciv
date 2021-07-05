@@ -421,7 +421,7 @@ static void client_unit_remove(struct unit *punit)
   struct player *powner;
   bool need_economy_report_update;
 
-  /* Close diplomat dialog if the diplomat is lost */
+  /* Close the action selection dialog if the actor unit is lost. */
   if (action_selection_actor_unit() == punit->id) {
     action_selection_close();
     /* Open another action selection dialog if there are other actors in the
@@ -1367,6 +1367,9 @@ void handle_end_turn(void)
    * the game.info.turn in handle_new_year() we will check it.
    */
   game.info.turn++;
+
+  log_verbose(_("Beginning turn %d"), game.info.turn);
+
   agents_before_new_turn();
 }
 

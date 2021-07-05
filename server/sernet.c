@@ -87,7 +87,6 @@
 #include "plrhand.h"
 #include "srv_main.h"
 #include "stdinhand.h"
-#include "unittools.h"
 #include "voting.h"
 
 #include "sernet.h"
@@ -127,7 +126,6 @@ static int server_accept_connection(int sockfd);
 static void start_processing_request(struct connection *pconn,
                                      int request_id);
 static void finish_processing_request(struct connection *pconn);
-static void finish_unit_waits(void);
 static void connection_ping(struct connection *pconn);
 static void send_ping_times_to_all(void);
 
@@ -555,7 +553,9 @@ enum server_events server_sniff_all_input(void)
 #endif /* FREECIV_HAVE_LIBREADLINE */
 
   while (TRUE) {
-    con_prompt_on();		/* accepting new input */
+    int selret;
+
+    con_prompt_on();   /* accepting new input */
 
     if (force_end_of_sniff) {
       force_end_of_sniff = FALSE;
@@ -663,7 +663,7 @@ enum server_events server_sniff_all_input(void)
     /* Don't wait if timeout == -1 (i.e. on auto games) */
     if (S_S_RUNNING == server_state() && game.info.timeout == -1) {
       call_ai_refresh();
-      script_server_signal_emit("pulse");
+      script_server_signal_emit("pulse", 0);
       (void) send_server_info_to_metaserver(META_REFRESH);
       return S_E_END_OF_TURN_TIMEOUT;
     }
@@ -706,18 +706,17 @@ enum server_events server_sniff_all_input(void)
     }
     con_prompt_off();		/* output doesn't generate a new prompt */
 
-    finish_unit_waits();
-
-    if (fc_select(max_desc + 1, &readfs, &writefs, &exceptfs, &tv) == 0) {
+    selret = fc_select(max_desc + 1, &readfs, &writefs, &exceptfs, &tv);
+    if (selret == 0) {
       /* timeout */
       call_ai_refresh();
-      script_server_signal_emit("pulse");
+      script_server_signal_emit("pulse", 0);
       (void) send_server_info_to_metaserver(META_REFRESH);
       if (current_turn_timeout() > 0
 	  && S_S_RUNNING == server_state()
 	  && game.server.phase_timer
 	  && (timer_read_seconds(game.server.phase_timer)
-              > game.tinfo.seconds_to_phasedone + game.server.phase_mask)) {
+	      > game.tinfo.seconds_to_phasedone)) {
 	con_prompt_off();
 	return S_E_END_OF_TURN_TIMEOUT;
       }
@@ -761,6 +760,8 @@ enum server_events server_sniff_all_input(void)
 #endif /* FREECIV_SOCKET_ZERO_NOT_STDIN */
 #endif /* !__VMS */
       }
+    } else if (selret < 0) {
+      log_error("fc_select() failed: %s", fc_strerror(fc_get_errno()));
     }
 
     excepting = FALSE;
@@ -900,13 +901,13 @@ enum server_events server_sniff_all_input(void)
   con_prompt_off();
 
   call_ai_refresh();
-  script_server_signal_emit("pulse");
+  script_server_signal_emit("pulse", 0);
 
   if (current_turn_timeout() > 0
       && S_S_RUNNING == server_state()
       && game.server.phase_timer
       && (timer_read_seconds(game.server.phase_timer)
-          > game.tinfo.seconds_to_phasedone + game.server.phase_mask)) {
+          > game.tinfo.seconds_to_phasedone)) {
     return S_E_END_OF_TURN_TIMEOUT;
   }
   if ((game.server.autosaves & (1 << AS_TIMER))
@@ -1388,30 +1389,6 @@ static void finish_processing_request(struct connection *pconn)
 }
 
 /****************************************************************************
-  Process all unit waits that are expired.
-*****************************************************************************/
-static void finish_unit_waits(void)
-{
-  time_t now = time(NULL);
-  struct unit *punit;
-  struct unit_wait *head;
-
-  while((head = unit_wait_list_front(server.unit_waits))
-        && head->wake_up < now) {
-
-    punit = game_unit_by_number(head->id);
-    if (!punit) {
-      /* Unit doesn't exist anymore. */
-      continue;
-    }
-    if (head->activity == punit->activity) {
-      finish_unit_wait(punit, head->activity_count);
-    }
-    unit_wait_list_pop_front(server.unit_waits);
-  }
-}
-
-/****************************************************************************
   Ping a connection.
 ****************************************************************************/
 static void connection_ping(struct connection *pconn)
@@ -1468,7 +1445,7 @@ static void send_ping_times_to_all(void)
     }
     fc_assert(i < ARRAY_SIZE(packet.conn_id));
     packet.conn_id[i] = pconn->id;
-    packet.ping_time[i] = 1;
+    packet.ping_time[i] = pconn->ping_time;
     i++;
   } conn_list_iterate_end;
   packet.connections = i;
